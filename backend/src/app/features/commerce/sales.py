@@ -1,0 +1,1 @@
+"""Sales metric use cases."""
