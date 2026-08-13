@@ -4,7 +4,10 @@
 
 The API is designed for V1 and V2 only.
 
-FastAPI exposes REST endpoints for normal request and response operations. `/chat/stream` uses Server-Sent Events for streaming assistant responses.
+FastAPI exposes two API groups:
+
+- Protected dashboard APIs for authenticated owner/team/admin users.
+- Public widget APIs for the embedded Shopify customer chatbot.
 
 Detailed endpoint contracts are defined in `Docs/api-contract.md`.
 
@@ -13,11 +16,18 @@ Detailed endpoint contracts are defined in `Docs/api-contract.md`.
 - Protocol: HTTPS in deployed environments.
 - Local development may use HTTP.
 - Format: JSON for normal requests and responses.
-- Streaming: SSE for `/chat/stream`.
-- Authentication: Supabase Auth JWT bearer token.
-- FastAPI is the only backend entry point for the frontend.
+- Streaming: SSE for `/chat/stream` and `/public/chat/stream`.
+- FastAPI is the only backend entry point.
+- The dashboard frontend calls only protected FastAPI APIs.
+- The Shopify widget calls only public widget FastAPI APIs.
 
-## Endpoint Groups
+## Protected Dashboard APIs
+
+Protected dashboard APIs require Supabase Auth JWT bearer tokens.
+
+Tenant context is resolved from the authenticated user and the database user record.
+
+These APIs may access business data depending on role and permissions.
 
 ### Authentication
 
@@ -63,7 +73,21 @@ Detailed endpoint contracts are defined in `Docs/api-contract.md`.
 
 - `/agent/tools`
 
-V1/V2 agent endpoints are read-only. Action execution and approval endpoints are future work.
+V1/V2 agent endpoints are read-only and dashboard-only. Action execution and approval endpoints are future work.
+
+## Public Widget APIs
+
+Public widget APIs are used only by the embedded Shopify customer chatbot.
+
+They do not require customer login to AI Commerce Copilot. They must still resolve the tenant safely using store identity, widget key, and allowed domain validation.
+
+Public widget APIs must not expose sales, orders, campaigns, internal tools, private documents, or user/team/admin data.
+
+### Widget
+
+- `/public/widget/config`
+- `/public/chat`
+- `/public/chat/stream`
 
 ## Error Format
 
