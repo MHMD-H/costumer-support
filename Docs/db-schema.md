@@ -233,7 +233,7 @@ Stores document metadata.
 | `tenant_id` | `uuid` | Foreign key to `tenants.id`, not null |
 | `uploaded_by_user_id` | `uuid` | Foreign key to `users.id`, not null |
 | `title` | `text` | Not null |
-| `type` | `text` | Not null, check in `pdf`, `docx`, `txt` |
+| `type` | `text` | Not null, check in `pdf`, `docx`, `txt`, `markdown`, `notion`, `web`, `csv` |
 | `source` | `text` | Not null |
 | `visibility` | `text` | Not null, default `internal`, check in `internal`, `public` |
 | `status` | `text` | Not null, check in `uploaded`, `processing`, `ready`, `failed` |
@@ -404,7 +404,7 @@ Recommended Chroma metadata per vector:
   "document_id": "uuid",
   "chunk_id": "uuid",
   "chunk_index": 0,
-  "document_type": "pdf",
+  "source_type": "pdf",
   "visibility": "public",
   "source": "uploaded-file-name.pdf",
   "title": "Return Policy"
