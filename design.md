@@ -41,101 +41,628 @@ It is used by store customers. Customers do not register for or log in to AI Com
 The widget can answer customer-facing questions about:
 
 - Products
-- Shipping
-- Returns
-- Warranties
-- Public policies
+- Orders
+- Sales
+- Campaigns
+- Documents metadata
+- Conversations
+- Messages
+- Feedback
+- Agent actions
+- Approval records
 
-The widget must resolve the correct tenant/store from Shopify context or widget configuration. It can only use customer-safe knowledge and approved product/policy information.
+### Chroma
 
-## Goal
+Chroma stores vector embeddings for RAG retrieval:
 
-Build a simple, modular platform that combines:
+- Document chunks
+- Product documentation chunks
+- Company policies
+- SOPs
+- Marketing guidelines
+- Historical reports
 
-- A FastAPI backend as the main entry point and orchestrator.
-- A protected owner dashboard API for internal users.
-- A public Shopify widget API for customer-safe chat.
-- A Retrieval-Augmented Generation (RAG) system for grounded answers from company knowledge.
-- A basic AI Agent for owner dashboard tool selection and business data summaries.
-- A Next.js dashboard frontend that communicates only with protected FastAPI APIs.
-- An embedded Shopify chat widget that communicates only with public widget APIs.
-- PostgreSQL for structured application and commerce data.
-- Chroma for document chunk embeddings and vector search.
+## Data Model
 
-## Architecture Summary
+### users
 
-The project is organized into five main areas:
+- `id`
+- `name`
+- `email`
+- `role`
+- `created_at`
+- `updated_at`
 
-- `frontend`: Next.js owner dashboard user interface.
-- `backend`: FastAPI routes, services, repositories, authentication, authorization, public widget validation, and orchestration.
-- `rag`: document parsing, chunking, embeddings, retrieval, search, and grounded answer generation.
-- `agent`: simple owner-dashboard tool selection, tool execution coordination, and response summarization.
-- `infra`: local PostgreSQL, Chroma, scripts, deployment notes, and supporting infrastructure.
+### products
 
-FastAPI is the main entry point for both surfaces.
+- `id`
+- `name`
+- `description`
+- `category`
+- `status`
+- `created_at`
+- `updated_at`
 
-The owner dashboard must not call PostgreSQL, Chroma, the RAG package, or the Agent package directly.
+### orders
 
-The Shopify widget must not call protected dashboard APIs. It must only call public widget APIs.
+- `id`
+- `user_id`
+- `status`
+- `total_amount`
+- `created_at`
+- `updated_at`
 
-## V1 Capabilities
+### sales
 
-V1 provides:
+- `id`
+- `order_id`
+- `product_id`
+- `amount`
+- `created_at`
 
-- Owner dashboard login with Supabase Auth.
-- Protected dashboard APIs for store/team/admin users.
-- Public widget configuration lookup.
-- Public customer chat inside a Shopify storefront.
-- Document upload from the dashboard.
-- Document visibility marking as `internal` or `public`.
-- PDF, DOCX, and TXT parsing.
-- Chunking and embeddings.
-- Vector storage in Chroma.
-- Customer-safe RAG answers with public sources.
-- Internal dashboard RAG answers with tenant-scoped sources.
-- Basic owner dashboard queries for products, orders, and sales.
-- Basic owner dashboard agent tools such as `get_products`, `get_orders`, and `get_sales`.
+### campaigns
 
-## V2 Capabilities
+- `id`
+- `name`
+- `channel`
+- `spend`
+- `revenue`
+- `roas`
+- `created_at`
+- `updated_at`
 
-V2 improves retrieval and business question handling:
+### documents
 
-- Hybrid retrieval using semantic search and keyword search.
-- Metadata filtering by tenant, document type, source, and visibility.
-- Query rewriting.
-- Improved chunking.
-- Multi-document customer-safe answers in the Shopify widget.
-- Multi-tool owner dashboard agent workflows.
-- Aggregated internal answers from multiple business data sources.
+- `id`
+- `title`
+- `type`
+- `source`
+- `created_at`
+- `updated_at`
+- `visibility`
+- `tenant_id`
+### document_chunks
 
-## Security Boundaries
+- `id`
+- `document_id`
+- `chunk_index`
+- `content`
+- `chroma_vector_id`
+- `metadata`
+- `created_at`
+- `visibility`
+- `tenant_id`
 
-- Protected dashboard APIs require Supabase Auth JWTs.
-- Dashboard tenant context is resolved from the authenticated user and database user record.
-- Public widget APIs do not require customer login.
-- Public widget tenant context is resolved from `shop_domain` or `shop_id`, `widget_public_key`, and allowed domain validation.
-- Public widget APIs must never expose sales, orders, campaigns, internal agent tools, private documents, or user/team/admin data.
-- Public widget APIs can access only customer-facing knowledge and approved product/policy information.
-- Public widget endpoints need rate limiting and domain validation.
-- Public widget tools must be read-only and customer-safe.
 
-## Core Documentation
+### conversations
 
-Implementation details are split across:
+- `id`
+- `user_id`
+- `status`
+- `created_at`
+- `updated_at`
 
-- `Docs/requirements.md`: V1/V2 requirements and non-functional expectations.
-- `Docs/architecture.md`: system components, product surfaces, and boundaries.
-- `Docs/api.md`: protected dashboard API and public widget API overview.
-- `Docs/api-contract.md`: endpoint contracts and Pydantic request/response models.
-- `Docs/db-schema.md`: PostgreSQL schema and Chroma storage notes.
-- `Docs/data-flow.md`: owner dashboard, public widget, chat, agent, and ingestion flows.
+### messages
 
-## Design Principles
+- `id`
+- `conversation_id`
+- `sender`
+- `content`
+- `sources`
+- `created_at`
 
-- Keep V1/V2 simple and implementable.
-- Separate internal dashboard behavior from public customer widget behavior.
-- Prefer clear module boundaries over premature abstraction.
-- Keep tenant isolation in all business and knowledge data.
-- Keep FastAPI responsible for orchestration and security checks.
-- Keep public widget behavior customer-safe by default.
-- Design for future versions without building V3-V6 complexity now.
+### feedback
+
+- `id`
+- `user_id`
+- `conversation_id`
+- `message_id`
+- `rating`
+- `comment`
+- `created_at`
+
+### agent_tools
+
+- `id`
+- `name`
+- `description`
+- `created_at`
+
+### agent_actions
+
+- `id`
+- `user_id`
+- `type`
+- `status`
+- `approval_status`
+- `created_at`
+- `updated_at`
+
+## Frontend Architecture
+
+The frontend will be built as a professional, interactive dashboard application for the AI Commerce Copilot platform.
+
+---
+
+### Frontend Technology Stack
+
+The frontend shall use the following technologies:
+
+- **Next.js**: React framework for routing, layouts, pages, and production-ready frontend structure.
+- **TypeScript**: Type-safe development and better maintainability.
+- **Tailwind CSS**: Utility-first styling for fast, consistent, and responsive UI development.
+- **shadcn/ui**: Professional reusable UI components such as buttons, dialogs, forms, tables, tabs, cards, and dropdowns.
+- **Framer Motion**: Smooth animations and micro-interactions.
+- **TanStack Query**: API data fetching, caching, loading states, and error handling.
+- **React Hook Form**: Form state management.
+- **Zod**: Frontend validation schemas.
+- **Recharts**: Charts and visual analytics.
+- **Lucide React**: Clean and consistent icon system.
+- **next-themes**: Light mode and dark mode support.
+## Chat Flow
+
+1. User sends a request to `/chat` or `/chat/stream`.
+2. System identifies the user role.
+3. System stores the user message in PostgreSQL.
+4. System retrieves relevant company knowledge from Chroma.
+5. System retrieves structured business data from PostgreSQL when needed.
+6. AI Agent selects the needed tool if the request requires orders, products, sales, campaigns, or actions.
+7. System generates a grounded answer using retrieved knowledge and business data.
+8. If the response is streamed, `/chat/stream` sends the answer using SSE.
+9. If the request needs action execution, the Agent creates a pending action.
+10. Store Owner or Marketing Manager approves or rejects the action through `/agent/actions/{id}/approval`.
+11. System stores the assistant response in PostgreSQL.
+12. User can submit feedback through `/feedback`.
+
+## Requirements
+
+# DESIGN.md
+
+# AI Commerce Copilot — System Requirements
+
+## 1. Project Overview
+
+AI Commerce Copilot is an AI-powered platform for E-commerce businesses that combines a **Retrieval-Augmented Generation (RAG)** system with an **AI Agent**.
+
+The system evolves incrementally through multiple versions, starting as a knowledge assistant and gradually becoming an autonomous business copilot capable of reasoning over business data, consulting company knowledge, and safely executing actions with human approval.
+
+---
+
+# 2. Vision
+
+Build a production-grade AI platform that can:
+
+- Answer customer questions accurately using company knowledge.
+- Assist store owners with business insights.
+- Analyze operational and sales data.
+- Recommend business decisions.
+- Execute approved business actions.
+- Eventually operate as an autonomous AI copilot.
+
+---
+
+# 3. Target Users
+
+## Customer
+
+Uses the assistant to:
+
+- Ask about products.
+- Ask about return policies.
+- Ask about shipping.
+- Ask about warranties.
+- Receive grounded answers from company knowledge.
+
+---
+
+## Store Owner
+
+Uses the assistant to:
+
+- Analyze sales.
+- Analyze products.
+- Analyze orders.
+- Compare business performance.
+- Receive recommendations.
+- Approve AI actions.
+
+---
+
+## Marketing Manager
+
+Uses the assistant to:
+
+- Analyze campaigns.
+- Improve ROAS.
+- Review recommendations.
+- Execute marketing actions safely.
+
+---
+
+# 4. High-Level Architecture
+
+The system consists of two major components.
+
+## RAG Layer
+
+Responsible for:
+
+- Knowledge ingestion
+- Document processing
+- Retrieval
+- Grounded answer generation
+
+---
+
+## Agent Layer
+
+Responsible for:
+
+- Planning
+- Tool calling
+- Data analysis
+- Decision making
+- Action execution
+- Human approval workflow
+
+---
+
+# 5. Functional Requirements
+
+---
+
+# Version 1 — Basic AI Assistant
+
+## Objective
+
+Provide a basic AI assistant for both customers and store owners.
+
+---
+
+## Customer Requirements
+
+The system shall allow customers to:
+
+- Ask questions about products.
+- Ask questions about company policies.
+- Receive answers grounded in uploaded documents.
+
+---
+
+## Store Owner Requirements
+
+The system shall allow store owners to:
+
+- Retrieve simple business metrics.
+- Query orders.
+- Query products.
+- Query sales.
+
+---
+
+## RAG Requirements
+
+The RAG system shall:
+
+- Support document upload.
+- Support PDF parsing.
+- Support DOCX parsing.
+- Support TXT parsing.
+- Chunk documents.
+- Generate embeddings.
+- Store vectors.
+- Retrieve relevant chunks.
+- Generate grounded answers.
+
+---
+
+## Agent Requirements
+
+The Agent shall:
+
+- Use an LLM.
+- Support basic tool calling.
+- Select the appropriate tool.
+- Return tool results naturally.
+
+Example tools:
+
+- get_sales()
+- get_orders()
+- get_products()
+
+---
+
+# Version 2 — Smart Assistant
+
+## Objective
+
+Support more complex reasoning and retrieval.
+
+---
+
+## Customer Requirements
+
+The system shall:
+
+- Answer questions requiring multiple documents.
+- Combine multiple company policies.
+- Retrieve information from several knowledge sources.
+
+---
+
+## Store Owner Requirements
+
+The system shall:
+
+- Compare multiple business metrics.
+- Aggregate information from several tools.
+- Answer analytical business questions.
+
+---
+
+## RAG Requirements
+
+The RAG system shall support:
+
+- Hybrid Retrieval
+- Semantic Search
+- Keyword Search
+- Metadata Filtering
+- Query Rewriting
+- Improved Chunking
+
+---
+
+## Agent Requirements
+
+The Agent shall:
+
+- Execute multiple tools in one task.
+- Aggregate outputs.
+- Produce summarized business answers.
+
+---
+
+# Version 3 — AI Business Analyst
+
+## Objective
+
+Transform the AI Agent into a business analyst.
+
+---
+
+## Customer Requirements
+
+The system shall maintain all previous customer capabilities.
+
+---
+
+## Store Owner Requirements
+
+The system shall:
+
+- Analyze business performance.
+- Explain sales drops.
+- Detect possible causes.
+- Produce analytical reports.
+
+---
+
+## RAG Requirements
+
+The RAG system shall support:
+
+- Context Selection
+- Reranking
+- Source Citations
+- Source Display
+- Unknown-answer behavior
+
+---
+
+## Agent Requirements
+
+The Agent shall:
+
+- Decompose tasks.
+- Plan execution.
+- Select tools dynamically.
+- Analyze retrieved data.
+- Retry failed operations.
+- Recover from tool failures.
+
+---
+
+# Version 4 — AI Business Copilot
+
+## Objective
+
+Combine business data with enterprise knowledge.
+
+---
+
+## Store Owner Requirements
+
+The system shall:
+
+- Analyze business metrics.
+- Retrieve company SOPs.
+- Retrieve marketing guidelines.
+- Generate recommendations aligned with company policies.
+
+---
+
+## RAG Requirements
+
+The knowledge base shall contain:
+
+- SOPs
+- Marketing Guidelines
+- Company Policies
+- Product Documentation
+- Historical Reports
+
+The RAG system shall expose a reusable retrieval interface that can be invoked by the AI Agent.
+
+---
+
+## Agent Requirements
+
+The Agent shall:
+
+- Understand user goals.
+- Create execution plans.
+- Retrieve structured data.
+- Retrieve enterprise knowledge.
+- Combine both sources.
+- Generate business recommendations.
+
+---
+
+# Version 5 — AI Operator
+
+## Objective
+
+Allow the Agent to safely execute business operations.
+
+---
+
+## Store Owner Requirements
+
+The system shall allow owners to:
+
+- Request operational changes.
+- Review pending actions.
+- Approve or reject AI decisions.
+
+---
+
+## RAG Requirements
+
+The knowledge system shall validate whether requested actions comply with company policies.
+
+---
+
+## Agent Requirements
+
+The Agent shall:
+
+- Execute operational tools.
+- Request human approval.
+- Integrate with external APIs.
+- Verify completed actions.
+- Produce audit logs.
+- Handle failures safely.
+
+---
+
+# Version 6 — Autonomous Growth Copilot
+
+## Objective
+
+Create an autonomous business assistant capable of continuous monitoring.
+
+---
+
+## Store Owner Requirements
+
+The system shall:
+
+- Monitor business performance.
+- Detect anomalies.
+- Detect opportunities.
+- Generate recommendations.
+- Prepare executable actions.
+- Request approval before execution.
+- Produce business reports.
+
+---
+
+## RAG Requirements
+
+The RAG system shall evolve into an Enterprise Knowledge Engine supporting:
+
+- Multi-tenant knowledge bases
+- Document permissions
+- Versioning
+- Advanced Retrieval
+- Reranking
+- Citations
+- Evaluation
+- Access Control
+- Historical Knowledge
+
+---
+
+## Agent Requirements
+
+The Agent shall support:
+
+- Long-term memory
+- Autonomous monitoring
+- Scheduled tasks
+- Planning
+- Tool orchestration
+- Business actions
+- Guardrails
+- Approval policies
+- Verification
+- Observability
+
+---
+
+# 6. Non-Functional Requirements
+
+The system shall:
+
+- Be modular.
+- Be production-ready.
+- Support scalability.
+- Support observability.
+- Support authentication.
+- Support authorization.
+- Isolate tenant data.
+- Log all important operations.
+- Handle failures gracefully.
+- Be extensible.
+- Be testable.
+- Be secure by default.
+
+---
+
+# 7. Milestones
+
+| Version | Goal |
+|----------|------|
+| V1 | Basic AI Assistant |
+| V2 | Smart Assistant |
+| V3 | AI Business Analyst |
+| V4 | AI Business Copilot |
+| V5 | AI Operator |
+| V6 | Autonomous Growth Copilot |
+
+---
+
+# 8. Portfolio Strategy
+
+- **V2** delivers a solid RAG + Agent demonstration suitable for showcasing core AI engineering skills.
+- **V3** demonstrates business reasoning and analytical capabilities.
+- **V4** represents the primary portfolio milestone and recommended first production target.
+- **V5** introduces production-safe action execution suitable for freelance client demonstrations.
+- **V6** represents the long-term SaaS vision with autonomous business operations.
+
+---
+
+# 9. Current Target
+
+The immediate project objective is to complete **Version 4 (AI Business Copilot)**.
+
+This version provides the best balance between:
+
+- Production readiness
+- Portfolio quality
+- Freelancing opportunities
+- Future SaaS extensibility
+
+Subsequent versions (V5 and V6) extend the platform toward a fully autonomous commercial AI product without requiring major architectural redesign.
