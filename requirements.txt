@@ -3,5 +3,7 @@ httpx
 pydantic
 pytest
 python-multipart
+SQLAlchemy>=2.0,<3
+asyncpg>=0.29,<1
 uvicorn
 -r rag/requirements.txt
