@@ -1,6 +1,16 @@
 .env
 .env.*
+!.env.example
 .venv/
 venv/
 env/
 rag_env/
+/package-lock.json
+/package.json
+__pycache__/
+*.py[cod]
+.pytest_cache/
+*.log
+dist/
+build/
+.next/
