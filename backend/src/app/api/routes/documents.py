@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_permission
 from app.core.tenant_context import DashboardTenantDep
-from app.features import mock_services
+from app.db.postgres import DbSessionDep
+from app.features import documents as document_service
 from app.features.schemas import (
     DocumentChunkListResponse,
     DocumentCreateResponse,
@@ -20,9 +21,10 @@ router = APIRouter(prefix="/documents", tags=["documents"])
 
 
 @router.get("")
-def list_documents(
+async def list_documents(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     type: Literal["pdf", "docx", "txt"] | None = None,
@@ -32,7 +34,15 @@ def list_documents(
     ] = None,
     visibility: Literal["internal", "public"] | None = None,
 ) -> DocumentListResponse:
-    return mock_services.list_documents(limit, offset)
+    return await document_service.list_documents(
+        session,
+        tenant.tenant_id,
+        document_type=type,
+        status=status_filter,
+        visibility=visibility,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post(
@@ -40,31 +50,47 @@ def list_documents(
     status_code=status.HTTP_201_CREATED,
     dependencies=[Depends(require_permission("upload_documents"))],
 )
-def upload_document(
+async def upload_document(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     file: UploadFile = File(),
     title: str | None = Form(default=None),
     visibility: Literal["internal", "public"] = Form(default="internal"),
 ) -> DocumentCreateResponse:
-    return mock_services.create_document(file.filename or "uploaded.txt", title, visibility)
+    return await document_service.create_document(
+        session,
+        tenant_id=tenant.tenant_id,
+        uploaded_by_user_id=current_user.id,
+        filename=file.filename or "uploaded.txt",
+        title=title,
+        visibility=visibility,
+    )
 
 
 @router.get("/{document_id}")
-def get_document(
+async def get_document(
     document_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
 ) -> DocumentResponse:
-    return mock_services.document_response(document_id)
+    return await document_service.get_document(session, tenant.tenant_id, document_id)
 
 
 @router.get("/{document_id}/chunks")
-def list_document_chunks(
+async def list_document_chunks(
     document_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> DocumentChunkListResponse:
-    return mock_services.list_document_chunks(limit, offset)
+    return await document_service.list_document_chunks(
+        session,
+        tenant.tenant_id,
+        document_id,
+        limit=limit,
+        offset=offset,
+    )

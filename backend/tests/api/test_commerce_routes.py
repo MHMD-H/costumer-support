@@ -1,8 +1,21 @@
 """Tests for commerce API routes."""
 
-from fastapi.testclient import TestClient
+from collections.abc import AsyncGenerator
 
+from fastapi.testclient import TestClient
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.postgres import get_db_session
+from app.features import mock_services
+from app.features.commerce import campaigns as campaign_service
+from app.features.commerce import orders as order_service
+from app.features.commerce import products as product_service
+from app.features.commerce import sales as sales_service
 from app.main import create_app
+
+
+async def fake_db_session() -> AsyncGenerator[AsyncSession, None]:
+    yield None
 
 
 def test_protected_commerce_routes_require_auth() -> None:
@@ -19,8 +32,27 @@ def test_protected_commerce_routes_require_auth() -> None:
         assert response.json()["error"] == "unauthorized"
 
 
-def test_protected_commerce_routes_return_mock_data_with_auth() -> None:
-    client = TestClient(create_app())
+def test_protected_commerce_routes_call_services_with_auth(monkeypatch) -> None:
+    async def fake_list_products(session, tenant_id, *, status, category, limit, offset):
+        return mock_services.list_products(limit, offset)
+
+    async def fake_list_orders(session, tenant_id, *, status, user_id, limit, offset):
+        return mock_services.list_orders(limit, offset)
+
+    async def fake_sales_summary(session, tenant_id, request):
+        return mock_services.sales_summary(request)
+
+    async def fake_list_campaigns(session, tenant_id, *, channel, limit, offset):
+        return mock_services.list_campaigns(limit, offset)
+
+    monkeypatch.setattr(product_service, "list_products", fake_list_products)
+    monkeypatch.setattr(order_service, "list_orders", fake_list_orders)
+    monkeypatch.setattr(sales_service, "get_sales_summary", fake_sales_summary)
+    monkeypatch.setattr(campaign_service, "list_campaigns", fake_list_campaigns)
+
+    app = create_app()
+    app.dependency_overrides[get_db_session] = fake_db_session
+    client = TestClient(app)
     headers = {"Authorization": "Bearer test-token"}
 
     products = client.get("/products", headers=headers)

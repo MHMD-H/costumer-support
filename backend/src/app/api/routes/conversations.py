@@ -7,7 +7,8 @@ from fastapi import APIRouter, Query, status
 
 from app.core.auth import CurrentDashboardUserDep
 from app.core.tenant_context import DashboardTenantDep
-from app.features import mock_services
+from app.db.postgres import DbSessionDep
+from app.features.conversations import service as conversation_service
 from app.features.schemas import (
     ConversationCreateRequest,
     ConversationListResponse,
@@ -19,40 +20,65 @@ router = APIRouter(prefix="/conversations", tags=["conversations"])
 
 
 @router.get("")
-def list_conversations(
+async def list_conversations(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     status_filter: Annotated[Literal["active", "archived"] | None, Query(alias="status")] = None,
 ) -> ConversationListResponse:
-    return mock_services.list_conversations(limit, offset)
+    return await conversation_service.list_conversations(
+        session,
+        tenant.tenant_id,
+        status=status_filter,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.post("", status_code=status.HTTP_201_CREATED)
-def create_conversation(
+async def create_conversation(
     request: ConversationCreateRequest,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
 ) -> ConversationResponse:
-    return mock_services.conversation_response(request=request)
+    return await conversation_service.create_conversation(
+        session,
+        tenant.tenant_id,
+        current_user.id,
+        request,
+    )
 
 
 @router.get("/{conversation_id}")
-def get_conversation(
+async def get_conversation(
     conversation_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
 ) -> ConversationResponse:
-    return mock_services.conversation_response(conversation_id)
+    return await conversation_service.get_conversation(
+        session,
+        tenant.tenant_id,
+        conversation_id,
+    )
 
 
 @router.get("/{conversation_id}/messages")
-def list_messages(
+async def list_messages(
     conversation_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> MessageListResponse:
-    return mock_services.list_messages(limit, offset)
+    return await conversation_service.list_messages(
+        session,
+        tenant.tenant_id,
+        conversation_id,
+        limit=limit,
+        offset=offset,
+    )

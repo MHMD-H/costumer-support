@@ -8,7 +8,8 @@ from fastapi import APIRouter, Depends, Query
 from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_roles
 from app.core.tenant_context import DashboardTenantDep
-from app.features import mock_services
+from app.db.postgres import DbSessionDep
+from app.features.commerce import campaigns as campaign_service
 from app.features.schemas import CampaignListResponse, CampaignResponse
 
 router = APIRouter(
@@ -19,20 +20,28 @@ router = APIRouter(
 
 
 @router.get("")
-def list_campaigns(
+async def list_campaigns(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
     channel: str | None = None,
 ) -> CampaignListResponse:
-    return mock_services.list_campaigns(limit, offset)
+    return await campaign_service.list_campaigns(
+        session,
+        tenant.tenant_id,
+        channel=channel,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.get("/{campaign_id}")
-def get_campaign(
+async def get_campaign(
     campaign_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
 ) -> CampaignResponse:
-    return mock_services.campaign_response(campaign_id)
+    return await campaign_service.get_campaign(session, tenant.tenant_id, campaign_id)
