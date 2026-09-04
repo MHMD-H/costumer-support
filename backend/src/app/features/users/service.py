@@ -1,5 +1,6 @@
 """User management use cases."""
 
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -8,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import User
 from app.db.repositories import users as user_repository
 from app.features.pagination import page
-from app.features.schemas import DashboardRole, UserListResponse, UserResponse
+from app.features.schemas import DashboardRole, UserListResponse, UserResponse, UserUpdateRequest
 
 
 def to_user_response(user: User) -> UserResponse:
@@ -78,4 +79,37 @@ async def create_user(
         email=email,
         role=role,
     )
+    return to_user_response(user)
+
+
+async def update_user(
+    session: AsyncSession,
+    tenant_id: UUID,
+    user_id: UUID,
+    request: UserUpdateRequest,
+) -> UserResponse:
+    user = await user_repository.get_user_by_id(session, tenant_id, user_id)
+    if user is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "User was not found."},
+        )
+
+    updates = {
+        field: value
+        for field, value in request.model_dump(exclude_unset=True).items()
+        if value is not None
+    }
+    email = updates.get("email")
+    if email is not None and email != user.email:
+        existing = await user_repository.get_user_by_email(session, tenant_id, email)
+        if existing is not None and existing.id != user.id:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail={"error": "conflict", "message": "A user with this email already exists for the tenant."},
+            )
+
+    if updates:
+        updates["updated_at"] = datetime.now(timezone.utc)
+        user = await user_repository.update_user(session, user, updates)
     return to_user_response(user)

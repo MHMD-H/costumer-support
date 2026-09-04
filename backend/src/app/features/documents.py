@@ -1,7 +1,8 @@
 """Document metadata use cases."""
 
+from datetime import datetime, timezone
 from pathlib import Path
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -16,6 +17,7 @@ from app.features.schemas import (
     DocumentCreateResponse,
     DocumentListResponse,
     DocumentResponse,
+    DocumentUpdateRequest,
 )
 
 
@@ -127,6 +129,104 @@ async def get_document(session: AsyncSession, tenant_id: UUID, document_id: UUID
             detail={"error": "not_found", "message": "Document was not found."},
         )
     return await to_document_response(session, document)
+
+
+async def update_document(
+    session: AsyncSession,
+    tenant_id: UUID,
+    document_id: UUID,
+    request: DocumentUpdateRequest,
+) -> DocumentResponse:
+    document = await document_repository.get_document_by_id(session, tenant_id, document_id)
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Document was not found."},
+        )
+
+    updates = {
+        field: value
+        for field, value in request.model_dump(exclude_unset=True).items()
+        if value is not None
+    }
+    if "metadata" in updates:
+        updates["metadata_"] = updates.pop("metadata")
+    if updates:
+        updates["updated_at"] = datetime.now(timezone.utc)
+        document = await document_repository.update_document(session, document, updates)
+    return await to_document_response(session, document)
+
+
+async def replace_document_content(
+    session: AsyncSession,
+    tenant_id: UUID,
+    document_id: UUID,
+    *,
+    filename: str,
+    content: bytes,
+    title: str | None,
+    visibility: str | None,
+) -> DocumentResponse:
+    document = await document_repository.get_document_by_id(session, tenant_id, document_id)
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Document was not found."},
+        )
+
+    try:
+        text_content = content.decode("utf-8", errors="replace")
+        document = await document_repository.update_document(
+            session,
+            document,
+            {
+                "title": title or filename,
+                "type": document_type_for_filename(filename),
+                "source": filename,
+                "visibility": visibility or document.visibility,
+                "status": "processing",
+                "updated_at": datetime.now(timezone.utc),
+            },
+        )
+        chunks = build_replacement_chunks(document, text_content)
+        document = await document_repository.replace_document_chunks(session, document, chunks)
+        document = await document_repository.update_document(
+            session,
+            document,
+            {"status": "ready", "updated_at": datetime.now(timezone.utc)},
+        )
+    except Exception:
+        await document_repository.update_document(
+            session,
+            document,
+            {"status": "failed", "updated_at": datetime.now(timezone.utc)},
+        )
+        raise
+
+    return await to_document_response(session, document)
+
+
+def build_replacement_chunks(document: Document, content: str) -> list[dict]:
+    chunk_size = 2000
+    parts = [content[index : index + chunk_size] for index in range(0, len(content), chunk_size)] or [""]
+    return [
+        {
+            "chunk_index": index,
+            "content": part,
+            "chroma_collection": "documents",
+            "chroma_vector_id": f"{document.id}:{uuid4()}:{index}",
+            "metadata": {
+                "tenant_id": str(document.tenant_id),
+                "document_id": str(document.id),
+                "chunk_index": index,
+                "source_type": document.type,
+                "visibility": document.visibility,
+                "source": document.source,
+                "title": document.title,
+            },
+        }
+        for index, part in enumerate(parts)
+    ]
 
 
 async def list_document_chunks(

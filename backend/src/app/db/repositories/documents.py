@@ -2,7 +2,7 @@
 
 from uuid import UUID
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Document, DocumentChunk
@@ -67,6 +67,14 @@ async def create_document(
     return document
 
 
+async def update_document(session: AsyncSession, document: Document, updates: dict) -> Document:
+    for field, value in updates.items():
+        setattr(document, field, value)
+    await session.commit()
+    await session.refresh(document)
+    return document
+
+
 async def count_document_chunks(session: AsyncSession, tenant_id: UUID, document_id: UUID) -> int:
     statement = select(DocumentChunk).where(
         DocumentChunk.tenant_id == tenant_id,
@@ -91,3 +99,32 @@ async def list_document_chunks(
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total
+
+
+async def replace_document_chunks(
+    session: AsyncSession,
+    document: Document,
+    chunks: list[dict],
+) -> Document:
+    await session.execute(
+        delete(DocumentChunk).where(
+            DocumentChunk.tenant_id == document.tenant_id,
+            DocumentChunk.document_id == document.id,
+        )
+    )
+    for chunk in chunks:
+        session.add(
+            DocumentChunk(
+                tenant_id=document.tenant_id,
+                document_id=document.id,
+                chunk_index=chunk["chunk_index"],
+                content=chunk["content"],
+                visibility=document.visibility,
+                chroma_collection=chunk["chroma_collection"],
+                chroma_vector_id=chunk["chroma_vector_id"],
+                metadata_=chunk["metadata"],
+            )
+        )
+    await session.commit()
+    await session.refresh(document)
+    return document

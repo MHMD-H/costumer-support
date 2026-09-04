@@ -1,6 +1,7 @@
 """Conversation workflows."""
 
 from typing import Any
+from datetime import datetime, timezone
 from uuid import UUID
 
 from fastapi import HTTPException, status
@@ -15,6 +16,7 @@ from app.features.schemas import (
     ConversationCreateRequest,
     ConversationListResponse,
     ConversationResponse,
+    ConversationUpdateRequest,
     MessageListResponse,
     MessageResponse,
     SourceRef,
@@ -113,6 +115,32 @@ async def get_conversation(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
         )
+    return to_conversation_response(conversation)
+
+
+async def update_conversation(
+    session: AsyncSession,
+    tenant_id: UUID,
+    conversation_id: UUID,
+    request: ConversationUpdateRequest,
+) -> ConversationResponse:
+    conversation = await conversation_repository.get_conversation_by_id(
+        session,
+        tenant_id,
+        conversation_id,
+    )
+    if conversation is None or conversation.surface != "dashboard":
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Conversation was not found."},
+        )
+
+    updates = request.model_dump(exclude_unset=True)
+    if updates.get("status") is None:
+        updates.pop("status", None)
+    if updates:
+        updates["updated_at"] = datetime.now(timezone.utc)
+        conversation = await conversation_repository.update_conversation(session, conversation, updates)
     return to_conversation_response(conversation)
 
 

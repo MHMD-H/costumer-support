@@ -61,6 +61,14 @@ async def create_conversation(
     return conversation
 
 
+async def update_conversation(session: AsyncSession, conversation: Conversation, updates: dict) -> Conversation:
+    for field, value in updates.items():
+        setattr(conversation, field, value)
+    await session.commit()
+    await session.refresh(conversation)
+    return conversation
+
+
 async def get_message_by_id(session: AsyncSession, tenant_id: UUID, message_id: UUID) -> Message | None:
     result = await session.execute(
         select(Message).where(Message.tenant_id == tenant_id, Message.id == message_id)

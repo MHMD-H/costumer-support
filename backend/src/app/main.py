@@ -11,10 +11,12 @@ from app.api.routes import (
     documents,
     feedback,
     orders,
+    permissions,
     products,
     public,
     sales,
     search,
+    tenants,
     users,
 )
 from app.core.exceptions import add_exception_handlers
@@ -34,6 +36,8 @@ def create_app() -> FastAPI:
     add_exception_handlers(app)
     app.include_router(auth.router)
     app.include_router(users.router)
+    app.include_router(tenants.router)
+    app.include_router(permissions.router)
     app.include_router(products.router)
     app.include_router(orders.router)
     app.include_router(sales.router)

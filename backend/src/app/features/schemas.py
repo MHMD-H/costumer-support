@@ -59,6 +59,52 @@ class UserListResponse(BaseModel):
     page: PageMeta
 
 
+class UserUpdateRequest(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    role: DashboardRole | None = None
+
+
+class TenantResponse(BaseModel):
+    id: UUID
+    name: str
+    shop_id: str | None = None
+    shop_domain: str | None = None
+    widget_public_key: str | None = None
+    widget_enabled: bool
+    widget_allowed_origins: list[Any] = Field(default_factory=list)
+    widget_settings: dict[str, Any] = Field(default_factory=dict)
+    created_at: datetime
+    updated_at: datetime
+
+
+class TenantUpdateRequest(BaseModel):
+    name: str | None = None
+    shop_id: str | None = None
+    shop_domain: str | None = None
+    widget_public_key: str | None = None
+    widget_enabled: bool | None = None
+    widget_allowed_origins: list[Any] | None = None
+    widget_settings: dict[str, Any] | None = None
+
+
+class PermissionResponse(BaseModel):
+    id: UUID
+    tenant_id: UUID
+    user_id: UUID
+    permission: str
+    created_at: datetime
+
+
+class PermissionListResponse(BaseModel):
+    items: list[PermissionResponse] = Field(default_factory=list)
+    page: PageMeta
+
+
+class PermissionUpdateRequest(BaseModel):
+    permission: str | None = None
+
+
 class LoginRequest(BaseModel):
     email: EmailStr
     password: str = Field(min_length=8)
@@ -143,6 +189,22 @@ class CampaignListResponse(BaseModel):
     page: PageMeta
 
 
+class CampaignCreateRequest(BaseModel):
+    name: str
+    channel: str
+    spend: Decimal
+    revenue: Decimal
+    roas: Decimal
+
+
+class CampaignUpdateRequest(BaseModel):
+    name: str | None = None
+    channel: str | None = None
+    spend: Decimal | None = None
+    revenue: Decimal | None = None
+    roas: Decimal | None = None
+
+
 class DocumentCreateResponse(BaseModel):
     id: UUID
     tenant_id: UUID
@@ -164,6 +226,13 @@ class DocumentListResponse(BaseModel):
     page: PageMeta
 
 
+class DocumentUpdateRequest(BaseModel):
+    title: str | None = None
+    visibility: Literal["internal", "public"] | None = None
+    status: Literal["uploaded", "processing", "ready", "failed"] | None = None
+    metadata: dict[str, Any] | None = None
+
+
 class DocumentChunkResponse(BaseModel):
     id: UUID
     document_id: UUID
@@ -180,6 +249,11 @@ class DocumentChunkListResponse(BaseModel):
 
 class ConversationCreateRequest(BaseModel):
     title: str | None = None
+
+
+class ConversationUpdateRequest(BaseModel):
+    title: str | None = None
+    status: Literal["active", "archived"] | None = None
 
 
 class ConversationResponse(BaseModel):
@@ -310,6 +384,11 @@ class FeedbackResponse(BaseModel):
     created_at: datetime
 
 
+class FeedbackUpdateRequest(BaseModel):
+    rating: int | None = Field(default=None, ge=1, le=5)
+    comment: str | None = None
+
+
 class AgentToolResponse(BaseModel):
     name: str
     description: str
@@ -319,6 +398,12 @@ class AgentToolResponse(BaseModel):
 
 class AgentToolListResponse(BaseModel):
     items: list[AgentToolResponse] = Field(default_factory=list)
+
+
+class AgentToolUpdateRequest(BaseModel):
+    description: str | None = None
+    input_schema: dict[str, Any] | None = None
+    read_only: bool | None = None
 
 
 def now_utc() -> datetime:

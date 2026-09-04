@@ -18,3 +18,25 @@ async def list_agent_tools(session: AsyncSession, tenant_id: UUID) -> list[Agent
         .order_by(AgentTool.name.asc())
     )
     return list(result.scalars().all())
+
+
+async def get_tenant_agent_tool_by_name(
+    session: AsyncSession,
+    tenant_id: UUID,
+    name: str,
+) -> AgentTool | None:
+    result = await session.execute(
+        select(AgentTool).where(
+            AgentTool.tenant_id == tenant_id,
+            AgentTool.name == name,
+        )
+    )
+    return result.scalar_one_or_none()
+
+
+async def update_agent_tool(session: AsyncSession, tool: AgentTool, updates: dict) -> AgentTool:
+    for field, value in updates.items():
+        setattr(tool, field, value)
+    await session.commit()
+    await session.refresh(tool)
+    return tool

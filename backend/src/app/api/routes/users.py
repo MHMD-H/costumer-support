@@ -9,7 +9,7 @@ from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_roles
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
-from app.features.schemas import UserListResponse, UserResponse
+from app.features.schemas import UserListResponse, UserResponse, UserUpdateRequest
 from app.features.users import service as user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
@@ -34,3 +34,14 @@ async def get_user(
     session: DbSessionDep,
 ) -> UserResponse:
     return await user_service.get_user(session, tenant.tenant_id, user_id)
+
+
+@router.patch("/{user_id}", dependencies=[Depends(require_roles("store_owner", "admin"))])
+async def update_user(
+    user_id: UUID,
+    request: UserUpdateRequest,
+    current_user: CurrentDashboardUserDep,
+    tenant: DashboardTenantDep,
+    session: DbSessionDep,
+) -> UserResponse:
+    return await user_service.update_user(session, tenant.tenant_id, user_id, request)

@@ -13,6 +13,7 @@ from app.features.schemas import (
     ConversationCreateRequest,
     ConversationListResponse,
     ConversationResponse,
+    ConversationUpdateRequest,
     MessageListResponse,
 )
 
@@ -63,6 +64,22 @@ async def get_conversation(
         session,
         tenant.tenant_id,
         conversation_id,
+    )
+
+
+@router.patch("/{conversation_id}")
+async def update_conversation(
+    conversation_id: UUID,
+    request: ConversationUpdateRequest,
+    current_user: CurrentDashboardUserDep,
+    tenant: DashboardTenantDep,
+    session: DbSessionDep,
+) -> ConversationResponse:
+    return await conversation_service.update_conversation(
+        session,
+        tenant.tenant_id,
+        conversation_id,
+        request,
     )
 
 

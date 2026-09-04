@@ -2,9 +2,17 @@
 
 from uuid import UUID
 
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Feedback
+
+
+async def get_feedback_by_id(session: AsyncSession, tenant_id: UUID, feedback_id: UUID) -> Feedback | None:
+    result = await session.execute(
+        select(Feedback).where(Feedback.tenant_id == tenant_id, Feedback.id == feedback_id)
+    )
+    return result.scalar_one_or_none()
 
 
 async def create_feedback(
@@ -28,6 +36,14 @@ async def create_feedback(
         comment=comment,
     )
     session.add(feedback)
+    await session.commit()
+    await session.refresh(feedback)
+    return feedback
+
+
+async def update_feedback(session: AsyncSession, feedback: Feedback, updates: dict) -> Feedback:
+    for field, value in updates.items():
+        setattr(feedback, field, value)
     await session.commit()
     await session.refresh(feedback)
     return feedback

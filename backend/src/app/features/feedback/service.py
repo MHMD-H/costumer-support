@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Feedback
 from app.db.repositories import conversations as conversation_repository
 from app.db.repositories import feedback as feedback_repository
-from app.features.schemas import FeedbackCreateRequest, FeedbackResponse
+from app.features.schemas import FeedbackCreateRequest, FeedbackResponse, FeedbackUpdateRequest
 
 
 def to_feedback_response(feedback: Feedback) -> FeedbackResponse:
@@ -61,4 +61,25 @@ async def create_feedback(
         rating=request.rating,
         comment=request.comment,
     )
+    return to_feedback_response(feedback)
+
+
+async def update_feedback(
+    session: AsyncSession,
+    tenant_id: UUID,
+    feedback_id: UUID,
+    request: FeedbackUpdateRequest,
+) -> FeedbackResponse:
+    feedback = await feedback_repository.get_feedback_by_id(session, tenant_id, feedback_id)
+    if feedback is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Feedback was not found."},
+        )
+
+    updates = request.model_dump(exclude_unset=True)
+    if updates.get("rating") is None:
+        updates.pop("rating", None)
+    if updates:
+        feedback = await feedback_repository.update_feedback(session, feedback, updates)
     return to_feedback_response(feedback)

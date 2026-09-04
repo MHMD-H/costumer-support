@@ -15,6 +15,7 @@ from app.features.schemas import (
     DocumentCreateResponse,
     DocumentListResponse,
     DocumentResponse,
+    DocumentUpdateRequest,
 )
 
 router = APIRouter(prefix="/documents", tags=["documents"])
@@ -76,6 +77,41 @@ async def get_document(
     session: DbSessionDep,
 ) -> DocumentResponse:
     return await document_service.get_document(session, tenant.tenant_id, document_id)
+
+
+@router.patch("/{document_id}")
+async def update_document(
+    document_id: UUID,
+    request: DocumentUpdateRequest,
+    current_user: CurrentDashboardUserDep,
+    tenant: DashboardTenantDep,
+    session: DbSessionDep,
+) -> DocumentResponse:
+    return await document_service.update_document(session, tenant.tenant_id, document_id, request)
+
+
+@router.put(
+    "/{document_id}",
+    dependencies=[Depends(require_permission("upload_documents"))],
+)
+async def replace_document(
+    document_id: UUID,
+    current_user: CurrentDashboardUserDep,
+    tenant: DashboardTenantDep,
+    session: DbSessionDep,
+    file: UploadFile = File(),
+    title: str | None = Form(default=None),
+    visibility: Literal["internal", "public"] | None = Form(default=None),
+) -> DocumentResponse:
+    return await document_service.replace_document_content(
+        session,
+        tenant.tenant_id,
+        document_id,
+        filename=file.filename or "uploaded.txt",
+        content=await file.read(),
+        title=title,
+        visibility=visibility,
+    )
 
 
 @router.get("/{document_id}/chunks")
