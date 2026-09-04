@@ -8,26 +8,40 @@ from fastapi import APIRouter, Depends, Query
 from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_roles
 from app.core.tenant_context import DashboardTenantDep
-from app.features import mock_services
-from app.features.schemas import UserListResponse, UserResponse
+from app.db.postgres import DbSessionDep
+from app.features.schemas import UserListResponse, UserResponse, UserUpdateRequest
+from app.features.users import service as user_service
 
 router = APIRouter(prefix="/users", tags=["users"])
 
 
 @router.get("", dependencies=[Depends(require_roles("store_owner", "admin"))])
-def list_users(
+async def list_users(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> UserListResponse:
-    return mock_services.list_users(limit, offset)
+    return await user_service.list_users(session, tenant.tenant_id, limit=limit, offset=offset)
 
 
 @router.get("/{user_id}")
-def get_user(
+async def get_user(
     user_id: UUID,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
+    session: DbSessionDep,
 ) -> UserResponse:
-    return mock_services.user_response(user_id)
+    return await user_service.get_user(session, tenant.tenant_id, user_id)
+
+
+@router.patch("/{user_id}", dependencies=[Depends(require_roles("store_owner", "admin"))])
+async def update_user(
+    user_id: UUID,
+    request: UserUpdateRequest,
+    current_user: CurrentDashboardUserDep,
+    tenant: DashboardTenantDep,
+    session: DbSessionDep,
+) -> UserResponse:
+    return await user_service.update_user(session, tenant.tenant_id, user_id, request)
