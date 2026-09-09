@@ -31,7 +31,7 @@ async def list_campaigns(
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
-    channel: str | None = None,
+    channel: Annotated[str | None, Query()] = None,
 ) -> CampaignListResponse:
     return await campaign_service.list_campaigns(
         session,

@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Permission
 from app.db.repositories.common import count_for_statement
@@ -11,7 +12,9 @@ from app.db.repositories.common import count_for_statement
 
 async def get_permission_by_id(session: AsyncSession, tenant_id: UUID, permission_id: UUID) -> Permission | None:
     result = await session.execute(
-        select(Permission).where(Permission.tenant_id == tenant_id, Permission.id == permission_id)
+        select(Permission)
+        .options(selectinload(Permission.tenant), selectinload(Permission.user))
+        .where(Permission.tenant_id == tenant_id, Permission.id == permission_id)
     )
     return result.scalar_one_or_none()
 
@@ -44,7 +47,7 @@ async def list_permissions(
     if user_id is not None:
         criteria.append(Permission.user_id == user_id)
 
-    statement = select(Permission).where(*criteria).order_by(Permission.created_at.desc())
+    statement = select(Permission).where(*criteria).order_by(Permission.created_at.desc(), Permission.id.desc())
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total

@@ -21,8 +21,8 @@ async def list_products(
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
-    status: Literal["active", "inactive", "archived"] | None = None,
-    category: str | None = None,
+    status: Annotated[Literal["active", "inactive", "archived"] | None, Query()] = None,
+    category: Annotated[str | None, Query()] = None,
 ) -> ProductListResponse:
     return await product_service.list_products(
         session,

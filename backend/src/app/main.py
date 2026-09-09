@@ -1,5 +1,8 @@
 """FastAPI app entry point."""
 
+from collections.abc import AsyncIterator
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 
 from app.api.routes import (
@@ -20,6 +23,16 @@ from app.api.routes import (
     users,
 )
 from app.core.exceptions import add_exception_handlers
+from app.db.postgres import dispose_engine, validate_database_connection
+
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
+    await validate_database_connection()
+    try:
+        yield
+    finally:
+        await dispose_engine()
 
 
 def create_app() -> FastAPI:
@@ -31,6 +44,7 @@ def create_app() -> FastAPI:
             "Protected dashboard APIs require placeholder Supabase JWT validation. "
             "Public widget APIs use placeholder store/widget validation."
         ),
+        lifespan=lifespan,
     )
 
     add_exception_handlers(app)
@@ -49,6 +63,15 @@ def create_app() -> FastAPI:
     app.include_router(feedback.router)
     app.include_router(agent.router)
     app.include_router(public.router)
+
+    # TODO: Add GET /tenants/{tenant_id}/statistics with aggregate COUNT/SUM/AVG
+    # queries instead of loading related rows.
+    # TODO: Add GET /users/{user_id}/history with pagination for large collections
+    # such as orders, documents, conversations, and feedback.
+    # TODO: Add /reports/sales for Shopify-sourced sales reports; sales stay
+    # read-only from the dashboard.
+    # TODO: Add GET /conversations/{conversation_id}/analysis and load messages
+    # and feedback only for that explicit analysis endpoint.
 
     @app.get("/health", tags=["health"])
     def health() -> dict[str, str]:

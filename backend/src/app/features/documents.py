@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.models import Document, DocumentChunk
 from app.db.repositories import documents as document_repository
 from app.db.repositories import users as user_repository
-from app.features.pagination import page
+from app.features.pagination import offset_pagination
 from app.features.schemas import (
     DocumentChunkListResponse,
     DocumentChunkResponse,
@@ -86,9 +86,12 @@ async def list_documents(
         limit=limit,
         offset=offset,
     )
-    return DocumentListResponse(
-        items=[await to_document_response(session, document) for document in documents],
-        page=page(limit, offset, total),
+    return offset_pagination(
+        DocumentListResponse,
+        [await to_document_response(session, document) for document in documents],
+        limit=limit,
+        offset=offset,
+        total=total,
     )
 
 
@@ -251,7 +254,10 @@ async def list_document_chunks(
         limit=limit,
         offset=offset,
     )
-    return DocumentChunkListResponse(
-        items=[to_document_chunk_response(chunk) for chunk in chunks],
-        page=page(limit, offset, total),
+    return offset_pagination(
+        DocumentChunkListResponse,
+        [to_document_chunk_response(chunk) for chunk in chunks],
+        limit=limit,
+        offset=offset,
+        total=total,
     )

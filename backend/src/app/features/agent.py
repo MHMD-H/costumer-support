@@ -6,13 +6,26 @@ from fastapi import HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.repositories import agent_tools as agent_tool_repository
+from app.features.pagination import offset_pagination
 from app.features.schemas import AgentToolListResponse, AgentToolResponse, AgentToolUpdateRequest
 
 
-async def list_agent_tools(session: AsyncSession, tenant_id: UUID) -> AgentToolListResponse:
-    tools = await agent_tool_repository.list_agent_tools(session, tenant_id)
-    return AgentToolListResponse(
-        items=[
+async def list_agent_tools(
+    session: AsyncSession,
+    tenant_id: UUID,
+    *,
+    limit: int,
+    offset: int,
+) -> AgentToolListResponse:
+    tools, total = await agent_tool_repository.list_agent_tools(
+        session,
+        tenant_id,
+        limit=limit,
+        offset=offset,
+    )
+    return offset_pagination(
+        AgentToolListResponse,
+        [
             AgentToolResponse(
                 name=tool.name,
                 description=tool.description,
@@ -20,7 +33,10 @@ async def list_agent_tools(session: AsyncSession, tenant_id: UUID) -> AgentToolL
                 read_only=tool.read_only,
             )
             for tool in tools
-        ]
+        ],
+        limit=limit,
+        offset=offset,
+        total=total,
     )
 
 

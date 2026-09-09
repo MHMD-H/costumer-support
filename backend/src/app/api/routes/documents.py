@@ -28,12 +28,12 @@ async def list_documents(
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
-    type: Literal["pdf", "docx", "txt"] | None = None,
+    type: Annotated[Literal["pdf", "docx", "txt"] | None, Query()] = None,
     status_filter: Annotated[
         Literal["uploaded", "processing", "ready", "failed"] | None,
         Query(alias="status"),
     ] = None,
-    visibility: Literal["internal", "public"] | None = None,
+    visibility: Annotated[Literal["internal", "public"] | None, Query()] = None,
 ) -> DocumentListResponse:
     return await document_service.list_documents(
         session,

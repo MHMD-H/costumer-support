@@ -68,3 +68,32 @@ def test_protected_commerce_routes_call_services_with_auth(monkeypatch) -> None:
     assert sales.json()["order_count"] == 10
     assert campaigns.status_code == 200
     assert campaigns.json()["items"][0]["channel"] == "email"
+
+
+def test_product_list_uses_offset_pagination_defaults_and_validation(monkeypatch) -> None:
+    calls = []
+
+    async def fake_list_products(session, tenant_id, *, status, category, limit, offset):
+        calls.append((tenant_id, status, category, limit, offset))
+        return mock_services.list_products(limit, offset)
+
+    monkeypatch.setattr(product_service, "list_products", fake_list_products)
+
+    app = create_app()
+    app.dependency_overrides[get_db_session] = fake_db_session
+    client = TestClient(app)
+    headers = {"Authorization": "Bearer test-token"}
+
+    response = client.get("/products", headers=headers)
+
+    assert response.status_code == 200
+    assert response.json()["limit"] == 20
+    assert response.json()["offset"] == 0
+    assert response.json()["page"] == 1
+    assert response.json()["total"] == 1
+    assert response.json()["has_more"] is False
+    assert calls[0][3:] == (20, 0)
+    assert client.get("/products?limit=100&offset=3", headers=headers).status_code == 200
+    assert calls[1][3:] == (100, 3)
+    assert client.get("/products?limit=101", headers=headers).status_code == 422
+    assert client.get("/products?offset=-1", headers=headers).status_code == 422

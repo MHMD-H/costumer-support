@@ -24,7 +24,7 @@ async def list_permissions(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
     session: DbSessionDep,
-    user_id: UUID | None = None,
+    user_id: Annotated[UUID | None, Query()] = None,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
 ) -> PermissionListResponse:

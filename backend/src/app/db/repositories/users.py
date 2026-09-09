@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import User
 from app.db.repositories.common import count_for_statement
@@ -11,13 +12,17 @@ from app.db.repositories.common import count_for_statement
 
 async def get_user_by_id(session: AsyncSession, tenant_id: UUID, user_id: UUID) -> User | None:
     result = await session.execute(
-        select(User).where(User.tenant_id == tenant_id, User.id == user_id)
+        select(User)
+        .options(selectinload(User.tenant))
+        .where(User.tenant_id == tenant_id, User.id == user_id)
     )
     return result.scalar_one_or_none()
 
 
 async def get_user_by_auth_user_id(session: AsyncSession, auth_user_id: UUID) -> User | None:
-    result = await session.execute(select(User).where(User.auth_user_id == auth_user_id))
+    result = await session.execute(
+        select(User).options(selectinload(User.tenant)).where(User.auth_user_id == auth_user_id)
+    )
     return result.scalar_one_or_none()
 
 
@@ -34,7 +39,7 @@ async def list_users(
     limit: int,
     offset: int,
 ) -> tuple[list[User], int]:
-    statement = select(User).where(User.tenant_id == tenant_id).order_by(User.created_at.desc())
+    statement = select(User).where(User.tenant_id == tenant_id).order_by(User.created_at.desc(), User.id.desc())
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total

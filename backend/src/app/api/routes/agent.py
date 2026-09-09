@@ -1,6 +1,8 @@
 """Dashboard agent API routes."""
 
-from fastapi import APIRouter, Depends
+from typing import Annotated
+
+from fastapi import APIRouter, Depends, Query
 
 from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_permission
@@ -21,8 +23,15 @@ async def list_agent_tools(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
     session: DbSessionDep,
+    limit: Annotated[int, Query(ge=1, le=100)] = 20,
+    offset: Annotated[int, Query(ge=0)] = 0,
 ) -> AgentToolListResponse:
-    return await agent_service.list_agent_tools(session, tenant.tenant_id)
+    return await agent_service.list_agent_tools(
+        session,
+        tenant.tenant_id,
+        limit=limit,
+        offset=offset,
+    )
 
 
 @router.patch("/tools/{tool_name}")

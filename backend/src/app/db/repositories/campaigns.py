@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Campaign
 from app.db.repositories.common import count_for_statement
@@ -11,7 +12,9 @@ from app.db.repositories.common import count_for_statement
 
 async def get_campaign_by_id(session: AsyncSession, tenant_id: UUID, campaign_id: UUID) -> Campaign | None:
     result = await session.execute(
-        select(Campaign).where(Campaign.tenant_id == tenant_id, Campaign.id == campaign_id)
+        select(Campaign)
+        .options(selectinload(Campaign.tenant))
+        .where(Campaign.tenant_id == tenant_id, Campaign.id == campaign_id)
     )
     return result.scalar_one_or_none()
 
@@ -28,7 +31,7 @@ async def list_campaigns(
     if channel is not None:
         criteria.append(Campaign.channel == channel)
 
-    statement = select(Campaign).where(*criteria).order_by(Campaign.created_at.desc())
+    statement = select(Campaign).where(*criteria).order_by(Campaign.created_at.desc(), Campaign.id.desc())
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total

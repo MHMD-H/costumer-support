@@ -3,6 +3,8 @@ httpx
 pydantic
 pytest
 python-multipart
+alembic>=1.13,<2
+python-dotenv>=1.0,<2
 SQLAlchemy>=2.0,<3
 asyncpg>=0.29,<1
 uvicorn

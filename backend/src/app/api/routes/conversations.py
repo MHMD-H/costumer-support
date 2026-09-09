@@ -26,7 +26,7 @@ async def list_conversations(
     tenant: DashboardTenantDep,
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query()] = None,
     status_filter: Annotated[Literal["active", "archived"] | None, Query(alias="status")] = None,
 ) -> ConversationListResponse:
     return await conversation_service.list_conversations(
@@ -34,7 +34,7 @@ async def list_conversations(
         tenant.tenant_id,
         status=status_filter,
         limit=limit,
-        offset=offset,
+        cursor=cursor,
     )
 
 
@@ -90,12 +90,12 @@ async def list_messages(
     tenant: DashboardTenantDep,
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
-    offset: Annotated[int, Query(ge=0)] = 0,
+    cursor: Annotated[str | None, Query()] = None,
 ) -> MessageListResponse:
     return await conversation_service.list_messages(
         session,
         tenant.tenant_id,
         conversation_id,
         limit=limit,
-        offset=offset,
+        cursor=cursor,
     )

@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
 from app.db.repositories import users as user_repository
-from app.features.pagination import page
+from app.features.pagination import offset_pagination
 from app.features.schemas import DashboardRole, UserListResponse, UserResponse, UserUpdateRequest
 
 
@@ -32,9 +32,12 @@ async def list_users(
     offset: int,
 ) -> UserListResponse:
     users, total = await user_repository.list_users(session, tenant_id, limit, offset)
-    return UserListResponse(
-        items=[to_user_response(user) for user in users],
-        page=page(limit, offset, total),
+    return offset_pagination(
+        UserListResponse,
+        [to_user_response(user) for user in users],
+        limit=limit,
+        offset=offset,
+        total=total,
     )
 
 

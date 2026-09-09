@@ -1,0 +1,5 @@
+Alembic migration environment for the backend PostgreSQL schema.
+
+Run commands from the repository root with:
+
+    .\.venv\Scripts\python.exe -m alembic -c backend\alembic.ini upgrade head

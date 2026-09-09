@@ -4,14 +4,14 @@ from typing import Any
 from datetime import datetime, timezone
 from uuid import UUID
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, status as http_status
 from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation, Message
 from app.db.repositories import conversations as conversation_repository
 from app.db.repositories import users as user_repository
-from app.features.pagination import page
+from app.features.pagination import decode_cursor, encode_cursor
 from app.features.schemas import (
     ConversationCreateRequest,
     ConversationListResponse,
@@ -63,18 +63,35 @@ async def list_conversations(
     *,
     status: str | None,
     limit: int,
-    offset: int,
+    cursor: str | None,
 ) -> ConversationListResponse:
-    conversations, total = await conversation_repository.list_conversations(
+    try:
+        cursor_values = decode_cursor(cursor) if cursor is not None else None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail={"error": "bad_request", "message": "Cursor is invalid."},
+        ) from exc
+
+    conversations = await conversation_repository.list_conversations(
         session,
         tenant_id,
         status=status,
         limit=limit,
-        offset=offset,
+        cursor_created_at=cursor_values[0] if cursor_values is not None else None,
+        cursor_id=cursor_values[1] if cursor_values is not None else None,
     )
+    has_more = len(conversations) > limit
+    conversations = conversations[:limit]
     return ConversationListResponse(
         items=[to_conversation_response(conversation) for conversation in conversations],
-        page=page(limit, offset, total),
+        limit=limit,
+        has_more=has_more,
+        next_cursor=(
+            encode_cursor(conversations[-1].created_at, conversations[-1].id)
+            if has_more and conversations
+            else None
+        ),
     )
 
 
@@ -87,7 +104,7 @@ async def create_conversation(
     user = await user_repository.get_user_by_id(session, tenant_id, user_id)
     if user is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation user was not found."},
         )
 
@@ -112,7 +129,7 @@ async def get_conversation(
     )
     if conversation is None or conversation.surface != "dashboard":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
         )
     return to_conversation_response(conversation)
@@ -131,7 +148,7 @@ async def update_conversation(
     )
     if conversation is None or conversation.surface != "dashboard":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
         )
 
@@ -150,7 +167,7 @@ async def list_messages(
     conversation_id: UUID,
     *,
     limit: int,
-    offset: int,
+    cursor: str | None,
 ) -> MessageListResponse:
     conversation = await conversation_repository.get_conversation_by_id(
         session,
@@ -159,20 +176,37 @@ async def list_messages(
     )
     if conversation is None or conversation.surface != "dashboard":
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
         )
 
-    messages, total = await conversation_repository.list_messages(
+    try:
+        cursor_values = decode_cursor(cursor) if cursor is not None else None
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=http_status.HTTP_400_BAD_REQUEST,
+            detail={"error": "bad_request", "message": "Cursor is invalid."},
+        ) from exc
+
+    messages = await conversation_repository.list_messages(
         session,
         tenant_id,
         conversation_id,
         limit=limit,
-        offset=offset,
+        cursor_created_at=cursor_values[0] if cursor_values is not None else None,
+        cursor_id=cursor_values[1] if cursor_values is not None else None,
     )
+    has_more = len(messages) > limit
+    messages = messages[:limit]
     return MessageListResponse(
         items=[to_message_response(message) for message in messages],
-        page=page(limit, offset, total),
+        limit=limit,
+        has_more=has_more,
+        next_cursor=(
+            encode_cursor(messages[-1].created_at, messages[-1].id)
+            if has_more and messages
+            else None
+        ),
     )
 
 
@@ -193,7 +227,7 @@ async def create_message(
     )
     if conversation is None:
         raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
+            status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
         )
 
