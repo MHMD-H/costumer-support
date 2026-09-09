@@ -4,6 +4,7 @@ from uuid import UUID
 
 from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Document, DocumentChunk
 from app.db.repositories.common import count_for_statement
@@ -11,7 +12,9 @@ from app.db.repositories.common import count_for_statement
 
 async def get_document_by_id(session: AsyncSession, tenant_id: UUID, document_id: UUID) -> Document | None:
     result = await session.execute(
-        select(Document).where(Document.tenant_id == tenant_id, Document.id == document_id)
+        select(Document)
+        .options(selectinload(Document.tenant), selectinload(Document.uploaded_by_user))
+        .where(Document.tenant_id == tenant_id, Document.id == document_id)
     )
     return result.scalar_one_or_none()
 
@@ -34,7 +37,7 @@ async def list_documents(
     if visibility is not None:
         criteria.append(Document.visibility == visibility)
 
-    statement = select(Document).where(*criteria).order_by(Document.created_at.desc())
+    statement = select(Document).where(*criteria).order_by(Document.created_at.desc(), Document.id.desc())
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total
@@ -93,8 +96,9 @@ async def list_document_chunks(
 ) -> tuple[list[DocumentChunk], int]:
     statement = (
         select(DocumentChunk)
+        .options(selectinload(DocumentChunk.document))
         .where(DocumentChunk.tenant_id == tenant_id, DocumentChunk.document_id == document_id)
-        .order_by(DocumentChunk.chunk_index.asc())
+        .order_by(DocumentChunk.created_at.desc(), DocumentChunk.id.desc())
     )
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))

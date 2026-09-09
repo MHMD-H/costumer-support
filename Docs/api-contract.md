@@ -14,7 +14,7 @@ FastAPI is the only API surface called by both the dashboard and widget frontend
 ```python
 from datetime import datetime
 from decimal import Decimal
-from typing import Any, Literal
+from typing import Any, Generic, Literal, TypeVar
 from uuid import UUID
 
 from pydantic import BaseModel, EmailStr, Field
@@ -32,10 +32,23 @@ class ErrorResponse(BaseModel):
     request_id: str | None = None
 
 
-class PageMeta(BaseModel):
+T = TypeVar("T")
+
+
+class OffsetPaginationResponse(BaseModel, Generic[T]):
+    items: list[T]
     limit: int
     offset: int
+    page: int
     total: int
+    has_more: bool
+
+
+class CursorPaginationResponse(BaseModel, Generic[T]):
+    items: list[T]
+    limit: int
+    next_cursor: str | None
+    has_more: bool
 
 
 class SourceRef(BaseModel):
@@ -97,9 +110,7 @@ class UserResponse(BaseModel):
     updated_at: datetime
 
 
-class UserListResponse(BaseModel):
-    items: list[UserResponse]
-    page: PageMeta
+UserListResponse = OffsetPaginationResponse[UserResponse]
 ```
 
 ## Commerce Models
@@ -128,9 +139,7 @@ class PublicProductRef(BaseModel):
     price: Decimal | None = None
 
 
-class ProductListResponse(BaseModel):
-    items: list[ProductResponse]
-    page: PageMeta
+ProductListResponse = OffsetPaginationResponse[ProductResponse]
 
 
 class OrderResponse(BaseModel):
@@ -143,9 +152,7 @@ class OrderResponse(BaseModel):
     updated_at: datetime
 
 
-class OrderListResponse(BaseModel):
-    items: list[OrderResponse]
-    page: PageMeta
+OrderListResponse = OffsetPaginationResponse[OrderResponse]
 
 
 class SalesSummaryRequest(BaseModel):
@@ -172,9 +179,7 @@ class CampaignResponse(BaseModel):
     updated_at: datetime
 
 
-class CampaignListResponse(BaseModel):
-    items: list[CampaignResponse]
-    page: PageMeta
+CampaignListResponse = OffsetPaginationResponse[CampaignResponse]
 ```
 
 ## Document Models
@@ -196,9 +201,7 @@ class DocumentResponse(DocumentCreateResponse):
     chunk_count: int = 0
 
 
-class DocumentListResponse(BaseModel):
-    items: list[DocumentResponse]
-    page: PageMeta
+DocumentListResponse = OffsetPaginationResponse[DocumentResponse]
 
 
 class DocumentChunkResponse(BaseModel):
@@ -210,9 +213,7 @@ class DocumentChunkResponse(BaseModel):
     created_at: datetime
 
 
-class DocumentChunkListResponse(BaseModel):
-    items: list[DocumentChunkResponse]
-    page: PageMeta
+DocumentChunkListResponse = OffsetPaginationResponse[DocumentChunkResponse]
 ```
 
 Document upload uses `multipart/form-data` with a `file` field, optional `title` field, and optional `visibility` field. Default visibility should be `internal`.
@@ -235,9 +236,7 @@ class ConversationResponse(BaseModel):
     updated_at: datetime
 
 
-class ConversationListResponse(BaseModel):
-    items: list[ConversationResponse]
-    page: PageMeta
+ConversationListResponse = CursorPaginationResponse[ConversationResponse]
 
 
 class MessageResponse(BaseModel):
@@ -249,9 +248,7 @@ class MessageResponse(BaseModel):
     created_at: datetime
 
 
-class MessageListResponse(BaseModel):
-    items: list[MessageResponse]
-    page: PageMeta
+MessageListResponse = CursorPaginationResponse[MessageResponse]
 
 
 class ChatRequest(BaseModel):
@@ -373,8 +370,7 @@ class AgentToolResponse(BaseModel):
     read_only: bool = True
 
 
-class AgentToolListResponse(BaseModel):
-    items: list[AgentToolResponse]
+AgentToolListResponse = OffsetPaginationResponse[AgentToolResponse]
 ```
 
 ## Protected Dashboard Endpoints
@@ -386,6 +382,7 @@ class AgentToolListResponse(BaseModel):
 | `/auth/logout` | POST | End current dashboard session client-side/server-side where supported | Required | None | None | 204, 401 |
 | `/users` | GET | List tenant dashboard users | Required: store owner/admin | Query params: `limit`, `offset` | `UserListResponse` | 200, 401, 403 |
 | `/users/{user_id}` | GET | Get one tenant dashboard user | Required | None | `UserResponse` | 200, 401, 403, 404 |
+| `/permissions` | GET | List tenant permissions | Required: store owner/admin | Query params: `limit`, `offset`, `user_id` | `OffsetPaginationResponse[PermissionResponse]` | 200, 401, 403 |
 | `/products` | GET | List products | Required | Query params: `limit`, `offset`, `status`, `category` | `ProductListResponse` | 200, 401, 403 |
 | `/products/{product_id}` | GET | Get product detail | Required | None | `ProductResponse` | 200, 401, 403, 404 |
 | `/orders` | GET | List orders | Required | Query params: `limit`, `offset`, `status`, `user_id` | `OrderListResponse` | 200, 401, 403 |
@@ -397,15 +394,15 @@ class AgentToolListResponse(BaseModel):
 | `/documents` | POST | Upload a document for ingestion | Required: upload documents permission | `multipart/form-data` | `DocumentCreateResponse` | 201, 400, 401, 403, 413, 415, 422 |
 | `/documents/{document_id}` | GET | Get document metadata | Required | None | `DocumentResponse` | 200, 401, 403, 404 |
 | `/documents/{document_id}/chunks` | GET | List document chunks | Required | Query params: `limit`, `offset` | `DocumentChunkListResponse` | 200, 401, 403, 404 |
-| `/conversations` | GET | List dashboard conversations | Required | Query params: `limit`, `offset`, `status` | `ConversationListResponse` | 200, 401, 403 |
+| `/conversations` | GET | List dashboard conversations | Required | Query params: `limit`, `cursor`, `status` | `ConversationListResponse` | 200, 400, 401, 403 |
 | `/conversations` | POST | Create dashboard conversation | Required | `ConversationCreateRequest` | `ConversationResponse` | 201, 401, 403, 422 |
 | `/conversations/{conversation_id}` | GET | Get dashboard conversation | Required | None | `ConversationResponse` | 200, 401, 403, 404 |
-| `/conversations/{conversation_id}/messages` | GET | List dashboard messages | Required | Query params: `limit`, `offset` | `MessageListResponse` | 200, 401, 403, 404 |
+| `/conversations/{conversation_id}/messages` | GET | List dashboard messages | Required | Query params: `limit`, `cursor` | `MessageListResponse` | 200, 400, 401, 403, 404 |
 | `/chat` | POST | Send dashboard chat message and receive full response | Required | `ChatRequest` | `ChatResponse` | 200, 401, 403, 422, 500 |
 | `/chat/stream` | POST | Send dashboard chat message and stream response | Required | `ChatRequest` | SSE | 200, 401, 403, 422, 500 |
 | `/search` | POST | Search internal knowledge and supported business data | Required | `SearchRequest` | `SearchResponse` | 200, 401, 403, 422 |
 | `/feedback` | POST | Submit feedback for an assistant message | Required | `FeedbackCreateRequest` | `FeedbackResponse` | 201, 401, 403, 404, 422 |
-| `/agent/tools` | GET | List available read-only dashboard agent tools | Required | None | `AgentToolListResponse` | 200, 401, 403 |
+| `/agent/tools` | GET | List available read-only dashboard agent tools | Required | Query params: `limit`, `offset` | `AgentToolListResponse` | 200, 401, 403 |
 
 ## Public Widget Endpoints
 

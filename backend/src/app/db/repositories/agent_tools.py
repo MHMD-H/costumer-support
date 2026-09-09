@@ -4,20 +4,31 @@ from uuid import UUID
 
 from sqlalchemy import or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import AgentTool
+from app.db.repositories.common import count_for_statement
 
 
-async def list_agent_tools(session: AsyncSession, tenant_id: UUID) -> list[AgentTool]:
-    result = await session.execute(
+async def list_agent_tools(
+    session: AsyncSession,
+    tenant_id: UUID,
+    *,
+    limit: int,
+    offset: int,
+) -> tuple[list[AgentTool], int]:
+    statement = (
         select(AgentTool)
+        .options(selectinload(AgentTool.tenant))
         .where(
             or_(AgentTool.tenant_id == tenant_id, AgentTool.tenant_id.is_(None)),
             AgentTool.read_only.is_(True),
         )
-        .order_by(AgentTool.name.asc())
+        .order_by(AgentTool.created_at.desc(), AgentTool.id.desc())
     )
-    return list(result.scalars().all())
+    total = await count_for_statement(session, statement)
+    result = await session.execute(statement.limit(limit).offset(offset))
+    return list(result.scalars().all()), total
 
 
 async def get_tenant_agent_tool_by_name(
@@ -26,7 +37,7 @@ async def get_tenant_agent_tool_by_name(
     name: str,
 ) -> AgentTool | None:
     result = await session.execute(
-        select(AgentTool).where(
+        select(AgentTool).options(selectinload(AgentTool.tenant)).where(
             AgentTool.tenant_id == tenant_id,
             AgentTool.name == name,
         )

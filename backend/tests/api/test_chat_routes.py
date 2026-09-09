@@ -2,7 +2,12 @@
 
 from fastapi.testclient import TestClient
 
+from app.db.postgres import get_db_session
 from app.main import create_app
+
+
+async def fake_db_session():
+    yield None
 
 
 def test_dashboard_stream_returns_sse_events() -> None:
@@ -48,3 +53,17 @@ def test_public_stream_returns_customer_safe_sse_events() -> None:
     assert "event: message_end" in body
     assert "event: tool_call" not in body
     assert "event: tool_result" not in body
+
+
+def test_conversation_list_rejects_an_invalid_cursor() -> None:
+    app = create_app()
+    app.dependency_overrides[get_db_session] = fake_db_session
+    client = TestClient(app)
+
+    response = client.get(
+        "/conversations?cursor=not-a-valid-cursor",
+        headers={"Authorization": "Bearer test-token"},
+    )
+
+    assert response.status_code == 400
+    assert response.json()["message"] == "Cursor is invalid."

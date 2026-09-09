@@ -52,7 +52,6 @@ from app.features.schemas import (
     MessageResponse,
     OrderListResponse,
     OrderResponse,
-    PageMeta,
     ProductListResponse,
     ProductResponse,
     PublicChatMessage,
@@ -71,10 +70,7 @@ from app.features.schemas import (
     new_uuid,
     now_utc,
 )
-
-
-def page(limit: int, offset: int, total: int = 1) -> PageMeta:
-    return PageMeta(limit=limit, offset=offset, total=total)
+from app.features.pagination import offset_pagination
 
 
 def mock_auth_user() -> AuthUserResponse:
@@ -115,7 +111,7 @@ def user_response(user_id: UUID = MOCK_USER_ID) -> UserResponse:
 
 
 def list_users(limit: int, offset: int) -> UserListResponse:
-    return UserListResponse(items=[user_response()], page=page(limit, offset))
+    return offset_pagination(UserListResponse, [user_response()], limit=limit, offset=offset, total=1)
 
 
 def product_response(product_id: UUID | None = None) -> ProductResponse:
@@ -136,7 +132,7 @@ def product_response(product_id: UUID | None = None) -> ProductResponse:
 
 
 def list_products(limit: int, offset: int) -> ProductListResponse:
-    return ProductListResponse(items=[product_response()], page=page(limit, offset))
+    return offset_pagination(ProductListResponse, [product_response()], limit=limit, offset=offset, total=1)
 
 
 def order_response(order_id: UUID | None = None) -> OrderResponse:
@@ -153,7 +149,7 @@ def order_response(order_id: UUID | None = None) -> OrderResponse:
 
 
 def list_orders(limit: int, offset: int) -> OrderListResponse:
-    return OrderListResponse(items=[order_response()], page=page(limit, offset))
+    return offset_pagination(OrderListResponse, [order_response()], limit=limit, offset=offset, total=1)
 
 
 def sales_summary(request: SalesSummaryRequest) -> SalesSummaryResponse:
@@ -180,7 +176,7 @@ def campaign_response(campaign_id: UUID | None = None) -> CampaignResponse:
 
 
 def list_campaigns(limit: int, offset: int) -> CampaignListResponse:
-    return CampaignListResponse(items=[campaign_response()], page=page(limit, offset))
+    return offset_pagination(CampaignListResponse, [campaign_response()], limit=limit, offset=offset, total=1)
 
 
 def document_response(document_id: UUID = MOCK_DOCUMENT_ID) -> DocumentResponse:
@@ -221,12 +217,13 @@ def create_document(
 
 
 def list_documents(limit: int, offset: int) -> DocumentListResponse:
-    return DocumentListResponse(items=[document_response()], page=page(limit, offset))
+    return offset_pagination(DocumentListResponse, [document_response()], limit=limit, offset=offset, total=1)
 
 
 def list_document_chunks(limit: int, offset: int) -> DocumentChunkListResponse:
-    return DocumentChunkListResponse(
-        items=[
+    return offset_pagination(
+        DocumentChunkListResponse,
+        [
             DocumentChunkResponse(
                 id=MOCK_CHUNK_ID,
                 document_id=MOCK_DOCUMENT_ID,
@@ -236,7 +233,9 @@ def list_document_chunks(limit: int, offset: int) -> DocumentChunkListResponse:
                 created_at=now_utc(),
             )
         ],
-        page=page(limit, offset),
+        limit=limit,
+        offset=offset,
+        total=1,
     )
 
 
@@ -257,10 +256,11 @@ def conversation_response(
     )
 
 
-def list_conversations(limit: int, offset: int) -> ConversationListResponse:
+def list_conversations(limit: int, cursor: str | None = None) -> ConversationListResponse:
     return ConversationListResponse(
         items=[conversation_response()],
-        page=page(limit, offset),
+        limit=limit,
+        has_more=False,
     )
 
 
@@ -285,8 +285,8 @@ def message_response() -> MessageResponse:
     )
 
 
-def list_messages(limit: int, offset: int) -> MessageListResponse:
-    return MessageListResponse(items=[message_response()], page=page(limit, offset))
+def list_messages(limit: int, cursor: str | None = None) -> MessageListResponse:
+    return MessageListResponse(items=[message_response()], limit=limit, has_more=False)
 
 
 def dashboard_chat(request: ChatRequest) -> ChatResponse:
@@ -364,9 +364,8 @@ def create_feedback(request: FeedbackCreateRequest) -> FeedbackResponse:
     )
 
 
-def list_agent_tools() -> AgentToolListResponse:
-    return AgentToolListResponse(
-        items=[
+def list_agent_tools(limit: int = 20, offset: int = 0) -> AgentToolListResponse:
+    tools = [
             AgentToolResponse(
                 name="get_products",
                 description="Read tenant product data.",
@@ -383,7 +382,7 @@ def list_agent_tools() -> AgentToolListResponse:
                 input_schema={"type": "object", "properties": {}},
             ),
         ]
-    )
+    return offset_pagination(AgentToolListResponse, tools, limit=limit, offset=offset, total=len(tools))
 
 
 def sse_payload(model: Any) -> dict[str, Any]:

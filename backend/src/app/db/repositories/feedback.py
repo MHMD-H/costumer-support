@@ -4,13 +4,20 @@ from uuid import UUID
 
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.db.models import Feedback
 
 
 async def get_feedback_by_id(session: AsyncSession, tenant_id: UUID, feedback_id: UUID) -> Feedback | None:
     result = await session.execute(
-        select(Feedback).where(Feedback.tenant_id == tenant_id, Feedback.id == feedback_id)
+        select(Feedback)
+        .options(
+            selectinload(Feedback.tenant),
+            selectinload(Feedback.user),
+            selectinload(Feedback.conversation),
+        )
+        .where(Feedback.tenant_id == tenant_id, Feedback.id == feedback_id)
     )
     return result.scalar_one_or_none()
 

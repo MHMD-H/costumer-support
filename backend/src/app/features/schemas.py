@@ -2,7 +2,7 @@
 
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import Annotated, Any, Literal
+from typing import Annotated, Any, Generic, Literal, TypeVar
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field
@@ -27,10 +27,23 @@ class ErrorResponse(BaseModel):
     request_id: str | None = None
 
 
-class PageMeta(BaseModel):
+T = TypeVar("T")
+
+
+class OffsetPaginationResponse(BaseModel, Generic[T]):
+    items: list[T] = Field(default_factory=list)
     limit: int
     offset: int
+    page: int
     total: int
+    has_more: bool
+
+
+class CursorPaginationResponse(BaseModel, Generic[T]):
+    items: list[T] = Field(default_factory=list)
+    limit: int
+    next_cursor: str | None = None
+    has_more: bool
 
 
 class SourceRef(BaseModel):
@@ -54,9 +67,8 @@ class UserResponse(AuthUserResponse):
     updated_at: datetime
 
 
-class UserListResponse(BaseModel):
-    items: list[UserResponse] = Field(default_factory=list)
-    page: PageMeta
+class UserListResponse(OffsetPaginationResponse[UserResponse]):
+    pass
 
 
 class UserUpdateRequest(BaseModel):
@@ -96,9 +108,8 @@ class PermissionResponse(BaseModel):
     created_at: datetime
 
 
-class PermissionListResponse(BaseModel):
-    items: list[PermissionResponse] = Field(default_factory=list)
-    page: PageMeta
+class PermissionListResponse(OffsetPaginationResponse[PermissionResponse]):
+    pass
 
 
 class PermissionUpdateRequest(BaseModel):
@@ -140,9 +151,8 @@ class PublicProductRef(BaseModel):
     price: Decimal | None = None
 
 
-class ProductListResponse(BaseModel):
-    items: list[ProductResponse] = Field(default_factory=list)
-    page: PageMeta
+class ProductListResponse(OffsetPaginationResponse[ProductResponse]):
+    pass
 
 
 class OrderResponse(BaseModel):
@@ -155,9 +165,8 @@ class OrderResponse(BaseModel):
     updated_at: datetime
 
 
-class OrderListResponse(BaseModel):
-    items: list[OrderResponse] = Field(default_factory=list)
-    page: PageMeta
+class OrderListResponse(OffsetPaginationResponse[OrderResponse]):
+    pass
 
 
 class SalesSummaryRequest(BaseModel):
@@ -184,9 +193,8 @@ class CampaignResponse(BaseModel):
     updated_at: datetime
 
 
-class CampaignListResponse(BaseModel):
-    items: list[CampaignResponse] = Field(default_factory=list)
-    page: PageMeta
+class CampaignListResponse(OffsetPaginationResponse[CampaignResponse]):
+    pass
 
 
 class CampaignCreateRequest(BaseModel):
@@ -221,9 +229,8 @@ class DocumentResponse(DocumentCreateResponse):
     chunk_count: int = 0
 
 
-class DocumentListResponse(BaseModel):
-    items: list[DocumentResponse] = Field(default_factory=list)
-    page: PageMeta
+class DocumentListResponse(OffsetPaginationResponse[DocumentResponse]):
+    pass
 
 
 class DocumentUpdateRequest(BaseModel):
@@ -242,9 +249,8 @@ class DocumentChunkResponse(BaseModel):
     created_at: datetime
 
 
-class DocumentChunkListResponse(BaseModel):
-    items: list[DocumentChunkResponse] = Field(default_factory=list)
-    page: PageMeta
+class DocumentChunkListResponse(OffsetPaginationResponse[DocumentChunkResponse]):
+    pass
 
 
 class ConversationCreateRequest(BaseModel):
@@ -267,9 +273,8 @@ class ConversationResponse(BaseModel):
     updated_at: datetime
 
 
-class ConversationListResponse(BaseModel):
-    items: list[ConversationResponse] = Field(default_factory=list)
-    page: PageMeta
+class ConversationListResponse(CursorPaginationResponse[ConversationResponse]):
+    pass
 
 
 class MessageResponse(BaseModel):
@@ -281,9 +286,8 @@ class MessageResponse(BaseModel):
     created_at: datetime
 
 
-class MessageListResponse(BaseModel):
-    items: list[MessageResponse] = Field(default_factory=list)
-    page: PageMeta
+class MessageListResponse(CursorPaginationResponse[MessageResponse]):
+    pass
 
 
 class ChatRequest(BaseModel):
@@ -396,8 +400,8 @@ class AgentToolResponse(BaseModel):
     read_only: bool = True
 
 
-class AgentToolListResponse(BaseModel):
-    items: list[AgentToolResponse] = Field(default_factory=list)
+class AgentToolListResponse(OffsetPaginationResponse[AgentToolResponse]):
+    pass
 
 
 class AgentToolUpdateRequest(BaseModel):

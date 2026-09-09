@@ -21,8 +21,11 @@ async def list_orders(
     session: DbSessionDep,
     limit: Annotated[int, Query(ge=1, le=100)] = 20,
     offset: Annotated[int, Query(ge=0)] = 0,
-    status: Literal["pending", "paid", "fulfilled", "cancelled", "refunded"] | None = None,
-    user_id: UUID | None = None,
+    status: Annotated[
+        Literal["pending", "paid", "fulfilled", "cancelled", "refunded"] | None,
+        Query(),
+    ] = None,
+    user_id: Annotated[UUID | None, Query()] = None,
 ) -> OrderListResponse:
     return await order_service.list_orders(
         session,

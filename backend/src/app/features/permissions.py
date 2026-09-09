@@ -7,7 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Permission
 from app.db.repositories import permissions as permission_repository
-from app.features.pagination import page
+from app.features.pagination import offset_pagination
 from app.features.schemas import PermissionListResponse, PermissionResponse, PermissionUpdateRequest
 
 
@@ -36,9 +36,12 @@ async def list_permissions(
         limit=limit,
         offset=offset,
     )
-    return PermissionListResponse(
-        items=[to_permission_response(permission) for permission in permissions],
-        page=page(limit, offset, total),
+    return offset_pagination(
+        PermissionListResponse,
+        [to_permission_response(permission) for permission in permissions],
+        limit=limit,
+        offset=offset,
+        total=total,
     )
 
 
