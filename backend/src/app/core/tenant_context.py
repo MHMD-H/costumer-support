@@ -1,13 +1,4 @@
-"""Tenant isolation context.
-
-Current status: dashboard tenant context comes from the mock authenticated user,
-and public widget tenant context resolves to a fixed mock tenant.
-Why placeholder: no approved database-backed tenant/store mapping exists yet.
-Replace when: SQL schema/migrations are created and approved, and when public
-widget validation moves beyond local/mock testing.
-Target implementation: DB-backed dashboard user/tenant lookup plus widget key,
-store identity, and allowed-origin validation.
-"""
+"""Trusted dashboard and public-widget tenant contexts."""
 
 from dataclasses import dataclass
 from typing import Annotated
@@ -28,6 +19,11 @@ class TenantContext:
 
 
 def resolve_dashboard_tenant(current_user: CurrentDashboardUserDep) -> TenantContext:
+    if current_user.tenant_id is None:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Connect a Shopify store before accessing the dashboard."},
+        )
     return TenantContext(tenant_id=current_user.tenant_id)
 
 
@@ -74,7 +70,11 @@ def resolve_public_widget_tenant_from_body(body: PublicChatRequest) -> TenantCon
     )
 
 
-DashboardTenantDep = Annotated[TenantContext, Depends(resolve_dashboard_tenant)]
+CurrentTenant = TenantContext
+CurrentTenantDep = Annotated[CurrentTenant, Depends(resolve_dashboard_tenant)]
+# Keep existing route annotations compatible while making the trusted context
+# explicit for new dependencies.
+DashboardTenantDep = CurrentTenantDep
 PublicWidgetTenantQueryDep = Annotated[
     TenantContext, Depends(resolve_public_widget_tenant_from_query)
 ]

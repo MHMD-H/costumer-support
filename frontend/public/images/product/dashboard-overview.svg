@@ -1,0 +1,53 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000" fill="none">
+  <rect width="1600" height="1000" rx="24" fill="#F8FAF9"/>
+  <rect width="248" height="1000" fill="#fff"/>
+  <path d="M248 0v1000" stroke="#E7ECE9"/>
+  <rect x="28" y="28" width="34" height="34" rx="10" fill="#008060"/>
+  <path d="M36 40h18l-1.4 14H37.4L36 40Zm4.5 0v-2a4.5 4.5 0 0 1 9 0v2" stroke="white" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="74" y="42" fill="#18312B" font-family="Arial,sans-serif" font-size="15" font-weight="700">AI Commerce</text>
+  <text x="74" y="59" fill="#65756E" font-family="Arial,sans-serif" font-size="12">Copilot</text>
+  <rect x="18" y="104" width="212" height="44" rx="9" fill="#EAF4F0"/>
+  <rect x="34" y="119" width="14" height="14" rx="3" stroke="#008060" stroke-width="1.6"/>
+  <path d="M37 126h8m-4-4v8" stroke="#008060" stroke-width="1.4"/>
+  <text x="60" y="132" fill="#006B50" font-family="Arial,sans-serif" font-size="14" font-weight="600">Overview</text>
+  <g fill="#66756F" font-family="Arial,sans-serif" font-size="14">
+    <text x="60" y="190">Products</text><text x="60" y="240">Orders</text><text x="60" y="290">Sales</text><text x="60" y="340">Campaigns</text>
+    <text x="60" y="414">Assistant</text><text x="60" y="464">Knowledge</text>
+  </g>
+  <g stroke="#8A9993" stroke-width="1.6" stroke-linecap="round">
+    <path d="M35 180h13m-13 5h13m-13 5h8"/><rect x="34" y="222" width="15" height="13" rx="2"/><path d="M35 272h13l-2 13H37l-2-13Zm2-3h9"/><path d="M35 322h14m-12-5h10m-8-5h6"/><path d="M35 405c0-6 13-6 13 0v8H35v-8Zm2-4 4 3 5-6"/><path d="M35 454h14v15H35zM38 451h8"/>
+  </g>
+  <rect x="30" y="914" width="34" height="34" rx="17" fill="#E6EEEA"/>
+  <text x="42" y="936" fill="#36564A" font-family="Arial,sans-serif" font-size="13" font-weight="700">AM</text>
+  <text x="76" y="928" fill="#344740" font-family="Arial,sans-serif" font-size="13" font-weight="600">Mohamed</text>
+  <text x="76" y="945" fill="#75837D" font-family="Arial,sans-serif" font-size="11">Store owner</text>
+  <text x="294" y="66" fill="#18312B" font-family="Arial,sans-serif" font-size="25" font-weight="700">Good morning, Mohamed</text>
+  <text x="294" y="95" fill="#697971" font-family="Arial,sans-serif" font-size="14">Here’s what’s happening with your store.</text>
+  <rect x="1364" y="45" width="192" height="42" rx="8" fill="#fff" stroke="#E3E9E5"/>
+  <circle cx="1387" cy="66" r="5" fill="#008060"/><text x="1401" y="71" fill="#40534B" font-family="Arial,sans-serif" font-size="13">Last 30 days</text>
+  <g>
+    <rect x="294" y="132" width="292" height="138" rx="12" fill="#fff" stroke="#E4EAE6"/>
+    <rect x="604" y="132" width="292" height="138" rx="12" fill="#fff" stroke="#E4EAE6"/>
+    <rect x="914" y="132" width="292" height="138" rx="12" fill="#fff" stroke="#E4EAE6"/>
+    <rect x="1224" y="132" width="332" height="138" rx="12" fill="#fff" stroke="#E4EAE6"/>
+    <g fill="#687870" font-family="Arial,sans-serif" font-size="13"><text x="318" y="168">Total sales</text><text x="628" y="168">Orders</text><text x="938" y="168">Average order value</text><text x="1248" y="168">Active products</text></g>
+    <g fill="#18312B" font-family="Arial,sans-serif" font-size="27" font-weight="700"><text x="318" y="211">$24,680</text><text x="628" y="211">384</text><text x="938" y="211">$64.27</text><text x="1248" y="211">126</text></g>
+    <g fill="#008060" font-family="Arial,sans-serif" font-size="12" font-weight="600"><text x="318" y="244">↑ 12.8% from previous period</text><text x="628" y="244">↑ 8.2% from previous period</text><text x="938" y="244">↑ 3.4% from previous period</text><text x="1248" y="244">View products</text></g>
+  </g>
+  <rect x="294" y="294" width="790" height="430" rx="12" fill="#fff" stroke="#E4EAE6"/>
+  <text x="322" y="334" fill="#18312B" font-family="Arial,sans-serif" font-size="17" font-weight="700">Sales over time</text>
+  <text x="322" y="358" fill="#75837D" font-family="Arial,sans-serif" font-size="12">Daily revenue for the selected period</text>
+  <g stroke="#EDF0EE"><path d="M350 416h686M350 476h686M350 536h686M350 596h686M350 656h686"/></g>
+  <g fill="#86938D" font-family="Arial,sans-serif" font-size="11"><text x="318" y="420">$8k</text><text x="318" y="480">$6k</text><text x="318" y="540">$4k</text><text x="318" y="600">$2k</text><text x="328" y="660">$0</text><text x="350" y="684">Jun 1</text><text x="490" y="684">Jun 7</text><text x="630" y="684">Jun 14</text><text x="770" y="684">Jun 21</text><text x="984" y="684">Jun 30</text></g>
+  <path d="M352 595 400 573 448 584 496 533 544 545 592 493 640 515 688 464 736 475 784 425 832 448 880 407 928 425 976 382 1034 397v260H352V595Z" fill="#008060" fill-opacity=".09"/>
+  <path d="m352 595 48-22 48 11 48-51 48 12 48-52 48 22 48-51 48 11 48-50 48 23 48-41 48 18 48-43 58 15" stroke="#008060" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+  <rect x="1102" y="294" width="454" height="430" rx="12" fill="#fff" stroke="#E4EAE6"/>
+  <text x="1130" y="334" fill="#18312B" font-family="Arial,sans-serif" font-size="17" font-weight="700">Recent orders</text>
+  <text x="1130" y="358" fill="#75837D" font-family="Arial,sans-serif" font-size="12">Your latest store activity</text>
+  <g stroke="#EDF0EE"><path d="M1129 386h400M1129 452h400M1129 518h400M1129 584h400M1129 650h400"/></g>
+  <g font-family="Arial,sans-serif"><text x="1130" y="416" fill="#344740" font-size="13" font-weight="600">#1048</text><text x="1265" y="416" fill="#75837D" font-size="12">Today, 10:42</text><text x="1460" y="416" fill="#18312B" font-size="13" font-weight="600">$86.00</text><text x="1130" y="482" fill="#344740" font-size="13" font-weight="600">#1047</text><text x="1265" y="482" fill="#75837D" font-size="12">Today, 09:18</text><text x="1460" y="482" fill="#18312B" font-size="13" font-weight="600">$42.50</text><text x="1130" y="548" fill="#344740" font-size="13" font-weight="600">#1046</text><text x="1265" y="548" fill="#75837D" font-size="12">Yesterday</text><text x="1460" y="548" fill="#18312B" font-size="13" font-weight="600">$119.00</text><text x="1130" y="614" fill="#344740" font-size="13" font-weight="600">#1045</text><text x="1265" y="614" fill="#75837D" font-size="12">Yesterday</text><text x="1460" y="614" fill="#18312B" font-size="13" font-weight="600">$58.00</text></g>
+  <rect x="294" y="748" width="1262" height="188" rx="12" fill="#fff" stroke="#E4EAE6"/>
+  <text x="322" y="788" fill="#18312B" font-family="Arial,sans-serif" font-size="17" font-weight="700">Store snapshot</text>
+  <text x="322" y="814" fill="#75837D" font-family="Arial,sans-serif" font-size="12">A clear view of the work across your store.</text>
+  <g font-family="Arial,sans-serif" font-size="13"><text x="322" y="866" fill="#75837D">Products</text><text x="322" y="901" fill="#18312B" font-size="20" font-weight="700">126</text><text x="580" y="866" fill="#75837D">Orders this month</text><text x="580" y="901" fill="#18312B" font-size="20" font-weight="700">384</text><text x="850" y="866" fill="#75837D">Campaigns</text><text x="850" y="901" fill="#18312B" font-size="20" font-weight="700">6 active</text><text x="1120" y="866" fill="#75837D">Team knowledge</text><text x="1120" y="901" fill="#18312B" font-size="20" font-weight="700">18 documents</text></g>
+</svg>

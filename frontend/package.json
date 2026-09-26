@@ -7,6 +7,7 @@
     "test": "vitest"
   },
   "dependencies": {
+    "@supabase/supabase-js": "2.102.0",
     "@hookform/resolvers": "latest",
     "@tanstack/react-query": "latest",
     "framer-motion": "latest",

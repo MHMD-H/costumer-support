@@ -1,0 +1,28 @@
+
+> dev
+> next dev
+
+▲ Next.js 16.3.5 (Turbopack)
+- Local:         http://localhost:3000
+- Network:       http://192.168.1.3:3000
+- Environments: .env.local
+✓ Ready in 1120ms
+✓ Running next.config took 39ms
+
+✓ Generated AGENTS.md and CLAUDE.md for AI agents. Set `agentRules: false` in next.config to disable.
+ GET / 200 in 2.7s (next.js: 1138ms, application-code: 1535ms)
+ GET / 200 in 115ms (next.js: 18ms, application-code: 97ms)
+ GET / 200 in 216ms (next.js: 22ms, application-code: 194ms)
+ GET / 200 in 90ms (next.js: 17ms, application-code: 73ms)
+ GET / 200 in 109ms (next.js: 14ms, application-code: 95ms)
+ GET / 200 in 102ms (next.js: 11ms, application-code: 91ms)
+ GET / 200 in 96ms (next.js: 12ms, application-code: 84ms)
+ GET / 200 in 88ms (next.js: 17ms, application-code: 71ms)
+ GET / 200 in 108ms (next.js: 19ms, application-code: 89ms)
+ GET /login 200 in 127ms (next.js: 89ms, application-code: 38ms)
+ GET / 200 in 202ms (next.js: 19ms, application-code: 183ms)
+ GET / 200 in 126ms (next.js: 22ms, application-code: 103ms)
+ GET / 200 in 92ms (next.js: 12ms, application-code: 80ms)
+ GET /login 200 in 67ms (next.js: 19ms, application-code: 47ms)
+ GET / 200 in 91ms (next.js: 11ms, application-code: 80ms)
+ GET / 200 in 98ms (next.js: 19ms, application-code: 79ms)

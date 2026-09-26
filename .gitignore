@@ -5,3 +5,7 @@ venv/
 env/
 rag_env/
 package.json
+frontend/node_modules/
+frontend/.next/
+.env.local
+.env.*.local

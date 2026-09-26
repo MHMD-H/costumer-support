@@ -3,6 +3,8 @@
 from collections.abc import AsyncGenerator
 
 from fastapi.testclient import TestClient
+
+from app.core.auth import get_current_dashboard_user
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.postgres import get_db_session
@@ -52,6 +54,7 @@ def test_protected_commerce_routes_call_services_with_auth(monkeypatch) -> None:
 
     app = create_app()
     app.dependency_overrides[get_db_session] = fake_db_session
+    app.dependency_overrides[get_current_dashboard_user] = mock_services.mock_auth_user
     client = TestClient(app)
     headers = {"Authorization": "Bearer test-token"}
 
@@ -81,6 +84,7 @@ def test_product_list_uses_offset_pagination_defaults_and_validation(monkeypatch
 
     app = create_app()
     app.dependency_overrides[get_db_session] = fake_db_session
+    app.dependency_overrides[get_current_dashboard_user] = mock_services.mock_auth_user
     client = TestClient(app)
     headers = {"Authorization": "Bearer test-token"}
 
