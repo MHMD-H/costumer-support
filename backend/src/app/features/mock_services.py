@@ -40,8 +40,6 @@ from app.features.schemas import (
     DocumentResponse,
     FeedbackCreateRequest,
     FeedbackResponse,
-    LoginRequest,
-    LoginResponse,
     MOCK_CHUNK_ID,
     MOCK_CONVERSATION_ID,
     MOCK_DOCUMENT_ID,
@@ -80,20 +78,6 @@ def mock_auth_user() -> AuthUserResponse:
         name="Mock Dashboard User",
         email="owner@example.com",
         role="store_owner",
-    )
-
-
-def login(request: LoginRequest) -> LoginResponse:
-    return LoginResponse(
-        access_token="mock-access-token",
-        refresh_token="mock-refresh-token",
-        user=AuthUserResponse(
-            id=MOCK_USER_ID,
-            tenant_id=MOCK_TENANT_ID,
-            name="Mock Dashboard User",
-            email=request.email,
-            role="store_owner",
-        ),
     )
 
 

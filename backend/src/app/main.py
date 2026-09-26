@@ -19,6 +19,7 @@ from app.api.routes import (
     public,
     sales,
     search,
+    shopify,
     tenants,
     users,
 )
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
 
     add_exception_handlers(app)
     app.include_router(auth.router)
+    app.include_router(shopify.router)
     app.include_router(users.router)
     app.include_router(tenants.router)
     app.include_router(permissions.router)

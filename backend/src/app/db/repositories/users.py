@@ -19,6 +19,11 @@ async def get_user_by_id(session: AsyncSession, tenant_id: UUID, user_id: UUID) 
     return result.scalar_one_or_none()
 
 
+async def get_user_by_application_id(session: AsyncSession, user_id: UUID) -> User | None:
+    result = await session.execute(select(User).where(User.id == user_id))
+    return result.scalar_one_or_none()
+
+
 async def get_user_by_auth_user_id(session: AsyncSession, auth_user_id: UUID) -> User | None:
     result = await session.execute(
         select(User).options(selectinload(User.tenant)).where(User.auth_user_id == auth_user_id)
@@ -35,7 +40,7 @@ async def get_user_by_email(session: AsyncSession, tenant_id: UUID, email: str) 
 
 async def list_users(
     session: AsyncSession,
-    tenant_id: UUID,
+    tenant_id: UUID | None,
     limit: int,
     offset: int,
 ) -> tuple[list[User], int]:

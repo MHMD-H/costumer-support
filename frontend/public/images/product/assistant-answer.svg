@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1440" height="960" viewBox="0 0 1440 960" fill="none">
+  <rect width="1440" height="960" rx="24" fill="#F8FAF9"/>
+  <rect width="270" height="960" fill="#fff"/>
+  <path d="M270 0v960" stroke="#E5EBE7"/>
+  <rect x="30" y="30" width="34" height="34" rx="10" fill="#008060"/>
+  <path d="M38 42h18l-1.4 14H39.4L38 42Zm4.5 0v-2a4.5 4.5 0 0 1 9 0v2" stroke="white" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="76" y="45" fill="#18312B" font-family="Arial,sans-serif" font-size="15" font-weight="700">AI Commerce Copilot</text>
+  <rect x="20" y="118" width="230" height="44" rx="9" fill="#EAF4F0"/>
+  <path d="M39 132h14v14H39zM42 129h8" stroke="#008060" stroke-width="1.6"/><text x="66" y="146" fill="#006B50" font-family="Arial,sans-serif" font-size="14" font-weight="600">Assistant</text>
+  <g fill="#74827C" font-family="Arial,sans-serif" font-size="13"><text x="40" y="218">Overview</text><text x="40" y="268">Products</text><text x="40" y="318">Orders</text><text x="40" y="368">Sales</text><text x="40" y="418">Campaigns</text><text x="40" y="484">Knowledge</text></g>
+  <g stroke="#8A9993" stroke-width="1.5" stroke-linecap="round"><rect x="19" y="202" width="14" height="14" rx="2"/><path d="M19 256h14m-12-3 5-5 4 4 3-5"/><rect x="19" y="302" width="14" height="13" rx="2"/><path d="M19 356h14m-12-5h10m-8-5h6"/><path d="M19 400h14m-12 5h10m-7 5h7"/><rect x="19" y="470" width="14" height="15" rx="2"/></g>
+  <text x="320" y="72" fill="#18312B" font-family="Arial,sans-serif" font-size="25" font-weight="700">Ask your store anything</text>
+  <text x="320" y="101" fill="#697971" font-family="Arial,sans-serif" font-size="14">Answers grounded in your business data and team knowledge.</text>
+  <rect x="320" y="146" width="1080" height="750" rx="14" fill="#fff" stroke="#E3EAE6"/>
+  <text x="352" y="190" fill="#18312B" font-family="Arial,sans-serif" font-size="16" font-weight="700">New conversation</text>
+  <rect x="856" y="166" width="512" height="76" rx="12" fill="#F5F8F6"/>
+  <text x="880" y="195" fill="#344740" font-family="Arial,sans-serif" font-size="14">How did sales this month compare with last month?</text>
+  <text x="880" y="220" fill="#75837D" font-family="Arial,sans-serif" font-size="12">Using your store data</text>
+  <circle cx="374" cy="292" r="18" fill="#E9F3EF"/><path d="M366 292h16m-8-8v16" stroke="#008060" stroke-width="1.6" stroke-linecap="round"/>
+  <text x="406" y="289" fill="#344740" font-family="Arial,sans-serif" font-size="14">Sales were up 12.8% this month compared with the previous</text>
+  <text x="406" y="313" fill="#344740" font-family="Arial,sans-serif" font-size="14">month, reaching $24,680 across 384 orders.</text>
+  <rect x="406" y="340" width="255" height="100" rx="10" fill="#F8FAF9" stroke="#E5EBE7"/>
+  <text x="426" y="368" fill="#75837D" font-family="Arial,sans-serif" font-size="12">Sales this month</text>
+  <text x="426" y="404" fill="#18312B" font-family="Arial,sans-serif" font-size="23" font-weight="700">$24,680</text>
+  <text x="566" y="404" fill="#008060" font-family="Arial,sans-serif" font-size="12" font-weight="600">+12.8%</text>
+  <text x="406" y="476" fill="#18312B" font-family="Arial,sans-serif" font-size="13" font-weight="700">Sources</text>
+  <rect x="406" y="492" width="130" height="30" rx="15" fill="#F1F5F3"/><circle cx="423" cy="507" r="4" fill="#008060"/><text x="434" y="511" fill="#40534B" font-family="Arial,sans-serif" font-size="11">Sales</text>
+  <rect x="544" y="492" width="136" height="30" rx="15" fill="#F1F5F3"/><circle cx="561" cy="507" r="4" fill="#008060"/><text x="572" y="511" fill="#40534B" font-family="Arial,sans-serif" font-size="11">Orders</text>
+  <rect x="688" y="492" width="164" height="30" rx="15" fill="#F1F5F3"/><circle cx="705" cy="507" r="4" fill="#008060"/><text x="716" y="511" fill="#40534B" font-family="Arial,sans-serif" font-size="11">Products</text>
+  <rect x="860" y="492" width="176" height="30" rx="15" fill="#F1F5F3"/><circle cx="877" cy="507" r="4" fill="#008060"/><text x="888" y="511" fill="#40534B" font-family="Arial,sans-serif" font-size="11">Campaigns</text>
+  <rect x="406" y="547" width="960" height="1" fill="#E9EEEB"/>
+  <text x="406" y="582" fill="#75837D" font-family="Arial,sans-serif" font-size="12">Answers use read-only store information. Review the source data in your dashboard.</text>
+  <rect x="352" y="794" width="1016" height="64" rx="12" fill="#fff" stroke="#CBD7D1"/>
+  <text x="378" y="833" fill="#84918B" font-family="Arial,sans-serif" font-size="14">Ask about your products, orders, sales, or campaigns...</text>
+  <rect x="1302" y="806" width="40" height="40" rx="9" fill="#008060"/><path d="m1314 826 14-8-5 17-3-6-6-3Zm6 3 4 5" stroke="white" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/>
+  <text x="352" y="878" fill="#87938D" font-family="Arial,sans-serif" font-size="11">For your store team · Read-only answers</text>
+</svg>

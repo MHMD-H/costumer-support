@@ -2,12 +2,12 @@
 
 from fastapi.testclient import TestClient
 
+from app.core.auth import get_current_dashboard_user
+from app.features.mock_services import mock_auth_user
 from app.features.schemas import (
     ChatRequest,
     ChatResponse,
     FeedbackCreateRequest,
-    LoginRequest,
-    LoginResponse,
     PublicChatRequest,
     PublicChatResponse,
     SearchRequest,
@@ -17,9 +17,7 @@ from app.main import create_app
 
 
 DOCUMENTED_ROUTES = {
-    ("POST", "/auth/login"),
     ("GET", "/auth/me"),
-    ("POST", "/auth/logout"),
     ("GET", "/users"),
     ("GET", "/users/{user_id}"),
     ("PATCH", "/users/{user_id}"),
@@ -61,7 +59,8 @@ DOCUMENTED_ROUTES = {
 
 
 def test_app_startup_and_health() -> None:
-    client = TestClient(create_app())
+    app = create_app()
+    client = TestClient(app)
 
     response = client.get("/health")
 
@@ -82,7 +81,7 @@ def test_all_documented_routes_exist() -> None:
     assert missing == set()
 
 
-def test_dashboard_endpoints_require_auth_but_login_is_public() -> None:
+def test_dashboard_endpoints_require_auth_and_do_not_accept_passwords() -> None:
     client = TestClient(create_app())
 
     login = client.post(
@@ -92,13 +91,14 @@ def test_dashboard_endpoints_require_auth_but_login_is_public() -> None:
     me = client.get("/auth/me")
     chat = client.post("/chat", json={"message": "hello"})
 
-    assert login.status_code == 200
+    assert login.status_code == 404
     assert me.status_code == 401
     assert chat.status_code == 401
 
 
 def test_public_widget_endpoints_do_not_require_dashboard_jwt() -> None:
-    client = TestClient(create_app())
+    app = create_app()
+    client = TestClient(app)
 
     config = client.get(
         "/public/widget/config",
@@ -122,7 +122,6 @@ def test_public_widget_endpoints_do_not_require_dashboard_jwt() -> None:
 
 
 def test_schema_examples_validate() -> None:
-    login_request = LoginRequest(email="owner@example.com", password="password123")
     public_request = PublicChatRequest(
         shop_domain="example-store.myshopify.com",
         widget_public_key="public-key",
@@ -135,11 +134,9 @@ def test_schema_examples_validate() -> None:
         rating=5,
     )
 
-    client = TestClient(create_app())
-    login_response = client.post(
-        "/auth/login",
-        json=login_request.model_dump(mode="json"),
-    )
+    app = create_app()
+    app.dependency_overrides[get_current_dashboard_user] = mock_auth_user
+    client = TestClient(app)
     public_response = client.post(
         "/public/chat",
         json=public_request.model_dump(mode="json"),
@@ -155,7 +152,6 @@ def test_schema_examples_validate() -> None:
         json=SearchRequest(query="returns").model_dump(mode="json"),
     )
 
-    LoginResponse.model_validate(login_response.json())
     PublicChatResponse.model_validate(public_response.json())
     ChatResponse.model_validate(dashboard_response.json())
     SearchResponse.model_validate(search_response.json())

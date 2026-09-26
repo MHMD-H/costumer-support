@@ -1,6 +1,8 @@
 fastapi
 httpx
 pydantic
+PyJWT[crypto]>=2.10,<3
+cryptography>=45,<46
 pytest
 python-multipart
 alembic>=1.13,<2

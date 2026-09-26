@@ -56,7 +56,7 @@ class SourceRef(BaseModel):
 
 class AuthUserResponse(BaseModel):
     id: UUID
-    tenant_id: UUID
+    tenant_id: UUID | None
     name: str
     email: EmailStr
     role: DashboardRole
@@ -100,6 +100,15 @@ class TenantUpdateRequest(BaseModel):
     widget_settings: dict[str, Any] | None = None
 
 
+class ShopifyConnectionStatusResponse(BaseModel):
+    connected: bool
+    shop_domain: str | None = None
+
+
+class ShopifyConnectRequest(BaseModel):
+    shop_domain: str = Field(min_length=1, max_length=253)
+
+
 class PermissionResponse(BaseModel):
     id: UUID
     tenant_id: UUID
@@ -114,18 +123,6 @@ class PermissionListResponse(OffsetPaginationResponse[PermissionResponse]):
 
 class PermissionUpdateRequest(BaseModel):
     permission: str | None = None
-
-
-class LoginRequest(BaseModel):
-    email: EmailStr
-    password: str = Field(min_length=8)
-
-
-class LoginResponse(BaseModel):
-    access_token: str
-    refresh_token: str | None = None
-    token_type: Literal["bearer"] = "bearer"
-    user: AuthUserResponse
 
 
 class ProductResponse(BaseModel):

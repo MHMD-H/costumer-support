@@ -65,6 +65,7 @@ class Tenant(Base):
     messages: Mapped[list[Message]] = relationship(back_populates="tenant")
     feedback: Mapped[list[Feedback]] = relationship(back_populates="tenant")
     agent_tools: Mapped[list[AgentTool]] = relationship(back_populates="tenant")
+    shopify_connection: Mapped[ShopifyConnection | None] = relationship(back_populates="tenant")
 
 
 class User(Base):
@@ -80,8 +81,11 @@ class User(Base):
     )
 
     id: Mapped[UUID] = uuid_pk()
-    tenant_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
-    auth_user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), nullable=False)
+    tenant_id: Mapped[UUID | None] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tenants.id"))
+    auth_user_id: Mapped[UUID] = mapped_column(
+        PG_UUID(as_uuid=True), ForeignKey("auth.users.id"), nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default=text("true"))
     name: Mapped[str] = mapped_column(Text, nullable=False)
     email: Mapped[str] = mapped_column(Text, nullable=False)
     role: Mapped[str] = mapped_column(Text, nullable=False)
@@ -94,6 +98,45 @@ class User(Base):
     uploaded_documents: Mapped[list[Document]] = relationship(back_populates="uploaded_by_user")
     conversations: Mapped[list[Conversation]] = relationship(back_populates="user")
     feedback: Mapped[list[Feedback]] = relationship(back_populates="user")
+    shopify_oauth_states: Mapped[list[ShopifyOAuthState]] = relationship(back_populates="user")
+
+
+class ShopifyOAuthState(Base):
+    __tablename__ = "shopify_oauth_states"
+    __table_args__ = (
+        UniqueConstraint("state_hash", name="shopify_oauth_states_state_hash_key"),
+        Index("shopify_oauth_states_expires_at_idx", "expires_at"),
+    )
+
+    id: Mapped[UUID] = uuid_pk()
+    user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    state_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    created_at: Mapped[datetime] = timestamp_column()
+
+    user: Mapped[User] = relationship(back_populates="shopify_oauth_states")
+
+
+class ShopifyConnection(Base):
+    __tablename__ = "shopify_connections"
+    __table_args__ = (
+        CheckConstraint("status = 'active'", name="shopify_connections_status_check"),
+        UniqueConstraint("tenant_id", name="shopify_connections_tenant_id_key"),
+        UniqueConstraint("shop_id", name="shopify_connections_shop_id_key"),
+        UniqueConstraint("shop_domain", name="shopify_connections_shop_domain_key"),
+    )
+
+    id: Mapped[UUID] = uuid_pk()
+    tenant_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("tenants.id"), nullable=False)
+    shop_id: Mapped[str] = mapped_column(Text, nullable=False)
+    shop_domain: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'active'"))
+    access_token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
+    created_at: Mapped[datetime] = timestamp_column()
+    updated_at: Mapped[datetime] = timestamp_column()
+
+    tenant: Mapped[Tenant] = relationship(back_populates="shopify_connection")
 
 
 class Permission(Base):
