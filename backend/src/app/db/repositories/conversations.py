@@ -33,8 +33,11 @@ async def list_conversations(
     limit: int,
     cursor_created_at: datetime | None,
     cursor_id: UUID | None,
+    user_id: UUID | None = None,
 ) -> list[Conversation]:
     criteria = [Conversation.tenant_id == tenant_id, Conversation.surface == "dashboard"]
+    if user_id is not None:
+        criteria.append(Conversation.user_id == user_id)
     if status is not None:
         criteria.append(Conversation.status == status)
     if cursor_created_at is not None and cursor_id is not None:

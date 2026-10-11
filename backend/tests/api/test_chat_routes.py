@@ -15,6 +15,7 @@ async def fake_db_session():
 def test_dashboard_stream_returns_sse_events() -> None:
     app = create_app()
     app.dependency_overrides[get_current_dashboard_user] = mock_auth_user
+    app.dependency_overrides[get_db_session] = fake_db_session
     client = TestClient(app)
 
     with client.stream(

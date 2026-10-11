@@ -127,3 +127,42 @@ def test_current_dashboard_user_rejects_unmatched_or_disabled_users(monkeypatch,
             auth.get_current_dashboard_user(auth.VerifiedSupabaseToken(subject=str(uuid4())), None)
         )
     assert error.value.status_code == 401
+
+
+def test_forged_jwt_metadata_cannot_choose_role_or_tenant(jwt_environment, monkeypatch) -> None:
+    auth_user_id, actual_tenant_id = uuid4(), uuid4()
+    token = make_token(
+        jwt_environment,
+        sub=str(auth_user_id),
+        user_metadata={"role": "store_owner", "tenant_id": str(uuid4())},
+    )
+    user = User(
+        id=uuid4(), tenant_id=actual_tenant_id, auth_user_id=auth_user_id,
+        is_active=True, name="Member", email="member@example.com", role="team_member",
+    )
+
+    async def get_user(*_args):
+        return user
+
+    monkeypatch.setattr(auth.user_repository, "get_user_by_auth_user_id", get_user)
+    resolved = asyncio.run(auth.get_current_dashboard_user(auth.validate_jwt(token), None))
+    assert resolved.role == "team_member"
+    assert resolved.tenant_id == actual_tenant_id
+
+
+def test_unknown_stored_role_is_forbidden_after_verified_identity(monkeypatch) -> None:
+    auth_user_id = uuid4()
+    user = User(
+        id=uuid4(), tenant_id=uuid4(), auth_user_id=auth_user_id,
+        is_active=True, name="Invalid", email="invalid@example.com", role="super_admin",
+    )
+
+    async def get_user(*_args):
+        return user
+
+    monkeypatch.setattr(auth.user_repository, "get_user_by_auth_user_id", get_user)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(auth.get_current_dashboard_user(
+            auth.VerifiedSupabaseToken(subject=str(auth_user_id)), None
+        ))
+    assert error.value.status_code == 403

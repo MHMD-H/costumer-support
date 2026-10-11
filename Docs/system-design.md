@@ -52,25 +52,49 @@ Dashboard roles:
 
 Dashboard ACL permissions:
 
+- `view_users`
+- `manage_users`
+- `view_permissions`
+- `manage_permissions`
+- `view_tenant`
+- `manage_tenant`
 - `view_products`
 - `manage_products`
 - `view_orders`
 - `view_sales`
 - `view_campaigns`
+- `manage_campaigns`
+- `view_documents`
 - `upload_documents`
 - `manage_documents`
+- `view_conversations`
+- `create_conversations`
+- `use_dashboard_chat`
+- `search_knowledge`
+- `submit_feedback`
 - `use_agent_tools`
+- `connect_shopify_store` (merchant onboarding only)
 
 Tenant isolation is enforced with `tenant_id` on every protected resource.
 
 ### Role/Permission Matrix
 
-| Role | Access |
-|---|---|
-| `store_owner` | All tenant permissions |
-| `admin` | Platform/admin access as documented; may access tenant resources for administration |
-| `marketing_manager` | `view_campaigns`, `view_products`, and `upload_documents` when assigned |
-| `team_member` | Only permissions assigned through ACL |
+| Role | Built-in permissions | Stored ACL assignments |
+|---|---|---|
+| `store_owner` | All listed permissions inside its own tenant | None needed |
+| `admin` | `view_users`, `manage_users`, `view_permissions`, `manage_permissions`, `view_tenant`, `manage_tenant`, `view_products`, `manage_products`, `view_orders`, `view_sales`, `view_campaigns`, `view_documents`, `upload_documents`, `manage_documents`, `view_conversations`, `create_conversations`, `use_dashboard_chat`, `search_knowledge`, `submit_feedback`, `use_agent_tools` | None; tenant scoped, not a global administrator |
+| `marketing_manager` | `view_users`, `view_products`, `manage_products`, `view_orders`, `view_sales`, `view_campaigns`, `manage_campaigns`, `view_documents`, `upload_documents`, `manage_documents`, `view_conversations`, `create_conversations`, `use_dashboard_chat`, `search_knowledge`, `submit_feedback`, `use_agent_tools` | None |
+| `team_member` | `view_users`, `view_products`, `use_dashboard_chat`, `search_knowledge`, `use_agent_tools` | Only `manage_products`, `view_orders`, `view_sales`, `view_campaigns`, `manage_campaigns`, `create_conversations`, `submit_feedback` when assigned in the current tenant |
+
+The API contract's narrower role-only gates still apply to user and permission
+listing, tenant administration, sales summaries, and campaign routes. A stored
+ACL assignment never overrides those gates. Team members with
+`create_conversations` may access only their own conversations; roles with
+`view_conversations` may access tenant conversations. Knowledge results and
+document sources require `view_documents`; agent tools additionally require
+the underlying data permission. `connect_shopify_store` preserves the
+authenticated, unlinked store-owner onboarding path and grants no dashboard
+resource access.
 
 ## D. Public Widget Access Validation
 

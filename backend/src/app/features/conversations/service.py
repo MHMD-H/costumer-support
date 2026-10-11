@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Conversation, Message
+from app.core.permissions import forbidden
 from app.db.repositories import conversations as conversation_repository
 from app.db.repositories import users as user_repository
 from app.features.pagination import decode_cursor, encode_cursor
@@ -64,7 +65,11 @@ async def list_conversations(
     status: str | None,
     limit: int,
     cursor: str | None,
+    viewer_id: UUID | None = None,
+    own_only: bool = False,
 ) -> ConversationListResponse:
+    if own_only and viewer_id is None:
+        raise forbidden()
     try:
         cursor_values = decode_cursor(cursor) if cursor is not None else None
     except ValueError as exc:
@@ -73,14 +78,15 @@ async def list_conversations(
             detail={"error": "bad_request", "message": "Cursor is invalid."},
         ) from exc
 
-    conversations = await conversation_repository.list_conversations(
-        session,
-        tenant_id,
-        status=status,
-        limit=limit,
-        cursor_created_at=cursor_values[0] if cursor_values is not None else None,
-        cursor_id=cursor_values[1] if cursor_values is not None else None,
-    )
+    filters = {
+        "status": status,
+        "limit": limit,
+        "cursor_created_at": cursor_values[0] if cursor_values is not None else None,
+        "cursor_id": cursor_values[1] if cursor_values is not None else None,
+    }
+    if own_only:
+        filters["user_id"] = viewer_id
+    conversations = await conversation_repository.list_conversations(session, tenant_id, **filters)
     has_more = len(conversations) > limit
     conversations = conversations[:limit]
     return ConversationListResponse(
@@ -121,6 +127,8 @@ async def get_conversation(
     session: AsyncSession,
     tenant_id: UUID,
     conversation_id: UUID,
+    viewer_id: UUID | None = None,
+    own_only: bool = False,
 ) -> ConversationResponse:
     conversation = await conversation_repository.get_conversation_by_id(
         session,
@@ -128,6 +136,11 @@ async def get_conversation(
         conversation_id,
     )
     if conversation is None or conversation.surface != "dashboard":
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Conversation was not found."},
+        )
+    if own_only and conversation.user_id != viewer_id:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
@@ -140,6 +153,8 @@ async def update_conversation(
     tenant_id: UUID,
     conversation_id: UUID,
     request: ConversationUpdateRequest,
+    viewer_id: UUID | None = None,
+    own_only: bool = False,
 ) -> ConversationResponse:
     conversation = await conversation_repository.get_conversation_by_id(
         session,
@@ -147,6 +162,11 @@ async def update_conversation(
         conversation_id,
     )
     if conversation is None or conversation.surface != "dashboard":
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Conversation was not found."},
+        )
+    if own_only and conversation.user_id != viewer_id:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
@@ -168,6 +188,9 @@ async def list_messages(
     *,
     limit: int,
     cursor: str | None,
+    viewer_id: UUID | None = None,
+    own_only: bool = False,
+    allow_document_sources: bool = True,
 ) -> MessageListResponse:
     conversation = await conversation_repository.get_conversation_by_id(
         session,
@@ -175,6 +198,11 @@ async def list_messages(
         conversation_id,
     )
     if conversation is None or conversation.surface != "dashboard":
+        raise HTTPException(
+            status_code=http_status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Conversation was not found."},
+        )
+    if own_only and conversation.user_id != viewer_id:
         raise HTTPException(
             status_code=http_status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
@@ -196,6 +224,8 @@ async def list_messages(
         cursor_created_at=cursor_values[0] if cursor_values is not None else None,
         cursor_id=cursor_values[1] if cursor_values is not None else None,
     )
+    if not allow_document_sources and any(message.sources for message in messages):
+        raise forbidden()
     has_more = len(messages) > limit
     messages = messages[:limit]
     return MessageListResponse(

@@ -2,10 +2,11 @@
 
 from typing import Annotated
 
-from fastapi import APIRouter, Query, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import RedirectResponse
 
 from app.core.auth import CurrentDashboardUserDep
+from app.core.permissions import require_shopify_connect
 from app.db.postgres import DbSessionDep
 from app.db.repositories import users as user_repository
 from app.features import shopify as shopify_service
@@ -13,7 +14,7 @@ from app.features import shopify as shopify_service
 router = APIRouter(prefix="/shopify", tags=["shopify"])
 
 
-@router.get("/connect")
+@router.get("/connect", dependencies=[Depends(require_shopify_connect)])
 async def connect_shopify(
     shop_domain: Annotated[str, Query()],
     current_user: CurrentDashboardUserDep,

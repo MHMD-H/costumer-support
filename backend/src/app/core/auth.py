@@ -13,6 +13,7 @@ from jwt import PyJWKClient
 
 from app.db.postgres import DbSessionDep
 from app.db.repositories import users as user_repository
+from app.core.rbac import Role
 from app.features.schemas import AuthUserResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
@@ -95,12 +96,20 @@ async def get_current_dashboard_user(
     if user is None or not user.is_active or user.auth_user_id != auth_user_id:
         raise unauthorized()
 
+    try:
+        role = Role(user.role)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Dashboard role is invalid."},
+        ) from None
+
     return AuthUserResponse(
         id=user.id,
         tenant_id=user.tenant_id,
         name=user.name,
         email=user.email,
-        role=user.role,
+        role=role,
     )
 
 

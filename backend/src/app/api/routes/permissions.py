@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query
 
 from app.core.auth import CurrentDashboardUserDep
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission, require_roles
+from app.core.rbac import Permission, Role
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
 from app.features import permissions as permission_service
@@ -15,11 +16,11 @@ from app.features.schemas import PermissionListResponse, PermissionResponse, Per
 router = APIRouter(
     prefix="/permissions",
     tags=["permissions"],
-    dependencies=[Depends(require_roles("store_owner", "admin"))],
+    dependencies=[Depends(require_roles(Role.STORE_OWNER, Role.ADMIN))],
 )
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_permission(Permission.VIEW_PERMISSIONS))])
 async def list_permissions(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
@@ -37,7 +38,7 @@ async def list_permissions(
     )
 
 
-@router.patch("/{permission_id}")
+@router.patch("/{permission_id}", dependencies=[Depends(require_permission(Permission.MANAGE_PERMISSIONS))])
 async def update_permission(
     permission_id: UUID,
     request: PermissionUpdateRequest,
@@ -45,4 +46,6 @@ async def update_permission(
     tenant: DashboardTenantDep,
     session: DbSessionDep,
 ) -> PermissionResponse:
-    return await permission_service.update_permission(session, tenant.tenant_id, permission_id, request)
+    return await permission_service.update_permission(
+        session, tenant.tenant_id, permission_id, request, acting_user=current_user
+    )

@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.dialects import postgresql
 
 from app.db.models import Product
-from app.db.repositories import conversations, products
+from app.db.repositories import agent_tools, conversations, permissions, products
 
 
 TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -102,3 +102,31 @@ def test_conversation_cursor_list_uses_created_at_and_id_boundary() -> None:
     assert "LIMIT 21" in statement_sql
     assert str(TENANT_ID) in statement_sql
     assert "'dashboard'" in statement_sql
+
+
+def test_acl_values_require_matching_permission_and_user_tenants() -> None:
+    user_id = UUID("55555555-5555-5555-5555-555555555555")
+    session = CapturingSession([ScalarResult([("view_orders", TENANT_ID)])])
+
+    values = asyncio.run(
+        permissions.list_user_permission_values(session, TENANT_ID, user_id)
+    )
+
+    statement_sql = sql(session.statements[0])
+    assert values == [("view_orders", TENANT_ID)]
+    assert "permissions.tenant_id" in statement_sql
+    assert f"permissions.tenant_id = '{TENANT_ID}'" not in statement_sql
+    assert f"permissions.user_id = '{user_id}'" in statement_sql
+    assert f"users.tenant_id = '{TENANT_ID}'" in statement_sql
+
+
+def test_agent_tool_list_filters_names_before_database_pagination() -> None:
+    session = CapturingSession([ScalarResult(0), ScalarResult([])])
+
+    asyncio.run(agent_tools.list_agent_tools(
+        session, TENANT_ID, limit=20, offset=0,
+        allowed_names=frozenset({"get_products"}),
+    ))
+
+    assert all("agent_tools.name IN ('get_products')" in sql(statement) for statement in session.statements)
+    assert all("agent_tools.read_only IS true" in sql(statement) for statement in session.statements)

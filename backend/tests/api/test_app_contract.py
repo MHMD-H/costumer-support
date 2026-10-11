@@ -3,6 +3,7 @@
 from fastapi.testclient import TestClient
 
 from app.core.auth import get_current_dashboard_user
+from app.db.postgres import get_db_session
 from app.features.mock_services import mock_auth_user
 from app.features.schemas import (
     ChatRequest,
@@ -136,6 +137,9 @@ def test_schema_examples_validate() -> None:
 
     app = create_app()
     app.dependency_overrides[get_current_dashboard_user] = mock_auth_user
+    async def fake_db_session():
+        yield None
+    app.dependency_overrides[get_db_session] = fake_db_session
     client = TestClient(app)
     public_response = client.post(
         "/public/chat",
