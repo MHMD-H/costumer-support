@@ -64,7 +64,7 @@ async def upload_document(
         session,
         tenant_id=tenant.tenant_id,
         uploaded_by_user_id=current_user.id,
-        filename=file.filename or "uploaded.txt",
+        file=file,
         title=title,
         visibility=visibility,
     )

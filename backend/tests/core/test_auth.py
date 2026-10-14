@@ -105,6 +105,51 @@ def test_current_dashboard_user_resolves_the_matching_active_application_user(mo
     assert current_user.role == "team_member"
 
 
+def test_verified_new_user_is_created_unlinked_as_store_owner(jwt_environment, monkeypatch) -> None:
+    auth_user_id = uuid4()
+    token = make_token(
+        jwt_environment,
+        sub=str(auth_user_id),
+        email="merchant@example.com",
+        user_metadata={"role": "admin", "tenant_id": str(uuid4())},
+    )
+    captured = {}
+
+    async def get_user(_session, received_id):
+        assert received_id == auth_user_id
+        return None
+
+    async def create_user(_session, **kwargs):
+        captured.update(kwargs)
+        return User(
+            id=uuid4(), tenant_id=None, auth_user_id=kwargs["auth_user_id"],
+            is_active=True, name=kwargs["email"], email=kwargs["email"], role="store_owner",
+        )
+
+    monkeypatch.setattr(auth.user_repository, "get_user_by_auth_user_id", get_user)
+    monkeypatch.setattr(auth.user_repository, "create_unlinked_store_owner", create_user)
+
+    resolved = asyncio.run(auth.get_current_dashboard_user(auth.validate_jwt(token), None))
+
+    assert captured == {"auth_user_id": auth_user_id, "email": "merchant@example.com"}
+    assert resolved.tenant_id is None
+    assert resolved.role == "store_owner"
+
+
+def test_missing_verified_email_cannot_create_application_user(monkeypatch) -> None:
+    async def get_user(*_args):
+        return None
+
+    async def create_user(*_args, **_kwargs):
+        pytest.fail("An application user must not be created without a verified email claim")
+
+    monkeypatch.setattr(auth.user_repository, "get_user_by_auth_user_id", get_user)
+    monkeypatch.setattr(auth.user_repository, "create_unlinked_store_owner", create_user)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(auth.get_current_dashboard_user(auth.VerifiedSupabaseToken(subject=str(uuid4())), None))
+    assert error.value.status_code == 401
+
+
 @pytest.mark.parametrize("resolved_user", [None, "disabled", "mismatched"])
 def test_current_dashboard_user_rejects_unmatched_or_disabled_users(monkeypatch, resolved_user) -> None:
     user = None

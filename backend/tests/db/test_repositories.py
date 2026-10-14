@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.dialects import postgresql
 
 from app.db.models import Product
-from app.db.repositories import agent_tools, conversations, permissions, products
+from app.db.repositories import agent_tools, conversations, permissions, products, shopify, users
 
 
 TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -130,3 +130,45 @@ def test_agent_tool_list_filters_names_before_database_pagination() -> None:
 
     assert all("agent_tools.name IN ('get_products')" in sql(statement) for statement in session.statements)
     assert all("agent_tools.read_only IS true" in sql(statement) for statement in session.statements)
+
+
+def test_new_merchant_insert_is_idempotent_and_unlinked(monkeypatch) -> None:
+    auth_user_id = UUID("66666666-6666-6666-6666-666666666666")
+    existing_user = object()
+
+    class Session(CapturingSession):
+        async def commit(self):
+            pass
+
+    async def get_existing(_session, received_id):
+        assert received_id == auth_user_id
+        return existing_user
+
+    monkeypatch.setattr(users, "get_user_by_auth_user_id", get_existing)
+    session = Session([None])
+    result = asyncio.run(users.create_unlinked_store_owner(
+        session, auth_user_id=auth_user_id, email="merchant@example.com"
+    ))
+
+    statement_sql = sql(session.statements[0])
+    assert result is existing_user
+    assert "ON CONFLICT ON CONSTRAINT users_auth_user_id_key DO NOTHING" in statement_sql
+    assert "NULL" in statement_sql
+    assert "'store_owner'" in statement_sql
+    assert "'merchant@example.com'" in statement_sql
+    assert str(auth_user_id) in statement_sql
+
+
+def test_shopify_callback_user_lookup_locks_current_role() -> None:
+    user_id = UUID("77777777-7777-7777-7777-777777777777")
+
+    class Result:
+        def scalar_one_or_none(self):
+            return None
+
+    session = CapturingSession([Result()])
+    asyncio.run(shopify.get_user(session, user_id))
+
+    statement_sql = sql(session.statements[0])
+    assert f"users.id = '{user_id}'" in statement_sql
+    assert "FOR UPDATE OF users" in statement_sql
