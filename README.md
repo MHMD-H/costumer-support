@@ -7,3 +7,13 @@ mock service responses, and local tests exist while DB, Supabase auth, RAG,
 agent orchestration, document processing, public widget security, and
 SQL-backed filters/pagination are intentionally deferred. See `Docs/setup.md`
 for the current placeholder status and replacement criteria.
+
+# Document upload staging (Task 20)
+
+Set `DOCUMENT_UPLOAD_DIR` to a private, persistent directory before using
+`POST /documents`. Accepted files are retained under
+`<DOCUMENT_UPLOAD_DIR>/<trusted tenant UUID>/<document UUID>.<validated type>`.
+The upload limit is 5 MB per file. This local staging requires a shared,
+durable storage and malware-scanning decision before production merchant
+uploads. Files remain `uploaded` until Tasks 21–22 add ingestion and status
+tracking.

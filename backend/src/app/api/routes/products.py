@@ -3,9 +3,11 @@
 from typing import Annotated, Literal
 from uuid import UUID
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, Depends, Query
 
 from app.core.auth import CurrentDashboardUserDep
+from app.core.permissions import require_permission
+from app.core.rbac import Permission
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
 from app.features.commerce import products as product_service
@@ -14,7 +16,7 @@ from app.features.schemas import ProductListResponse, ProductResponse
 router = APIRouter(prefix="/products", tags=["products"])
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_permission(Permission.VIEW_PRODUCTS))])
 async def list_products(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
@@ -34,7 +36,7 @@ async def list_products(
     )
 
 
-@router.get("/{product_id}")
+@router.get("/{product_id}", dependencies=[Depends(require_permission(Permission.VIEW_PRODUCTS))])
 async def get_product(
     product_id: UUID,
     current_user: CurrentDashboardUserDep,

@@ -16,6 +16,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import User
 from app.db.repositories import shopify as shopify_repository
+from app.core.rbac import Role
 
 SHOP_DOMAIN_PATTERN = re.compile(r"^[a-z0-9][a-z0-9-]*\.myshopify\.com$")
 OAUTH_STATE_TTL = timedelta(minutes=10)
@@ -77,6 +78,8 @@ def is_valid_callback_hmac(parameters: list[tuple[str, str]]) -> bool:
 async def begin_connection(
     session: AsyncSession, *, user: User, shop_domain: str
 ) -> str:
+    if not user.is_active or user.role != Role.STORE_OWNER:
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "forbidden", "message": "Shopify connection requires an active store owner."})
     state = token_urlsafe(32)
     await shopify_repository.create_oauth_state(
         session,
@@ -152,8 +155,8 @@ async def complete_connection(
     try:
         async with session.begin():
             user = await shopify_repository.get_user(session, oauth_state.user_id)
-            if user is None or not user.is_active:
-                raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "bad_request", "message": "Shopify connection is no longer available."})
+            if user is None or not user.is_active or user.role != Role.STORE_OWNER:
+                raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "forbidden", "message": "Shopify connection requires an active store owner."})
             existing_connection = await shopify_repository.get_connection_by_shop_id(session, shop_id)
             if existing_connection is not None and existing_connection.tenant_id != user.tenant_id:
                 raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"error": "conflict", "message": "This Shopify store is already connected."})

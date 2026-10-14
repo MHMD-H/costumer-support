@@ -3,6 +3,7 @@
 from dataclasses import dataclass
 from functools import lru_cache
 from os import getenv
+import re
 from typing import Annotated
 from uuid import UUID
 
@@ -13,6 +14,7 @@ from jwt import PyJWKClient
 
 from app.db.postgres import DbSessionDep
 from app.db.repositories import users as user_repository
+from app.core.rbac import Role
 from app.features.schemas import AuthUserResponse
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="auth/login", auto_error=False)
@@ -24,6 +26,7 @@ class VerifiedSupabaseToken:
     """Claims trusted after complete Supabase JWT verification."""
 
     subject: str
+    email: str | None = None
 
 
 def unauthorized(message: str = "Dashboard authentication is required.") -> HTTPException:
@@ -78,7 +81,8 @@ def validate_jwt(
     subject = claims.get("sub")
     if not isinstance(subject, str) or not subject:
         raise unauthorized("Bearer token is invalid.")
-    return VerifiedSupabaseToken(subject=subject)
+    email = claims.get("email")
+    return VerifiedSupabaseToken(subject=subject, email=email if isinstance(email, str) else None)
 
 
 async def get_current_dashboard_user(
@@ -92,15 +96,30 @@ async def get_current_dashboard_user(
         raise unauthorized("Bearer token is invalid.") from None
 
     user = await user_repository.get_user_by_auth_user_id(session, auth_user_id)
+    if user is None:
+        email = verified_token.email
+        if not isinstance(email, str) or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+            raise unauthorized("Verified user email is required.")
+        user = await user_repository.create_unlinked_store_owner(
+            session, auth_user_id=auth_user_id, email=email
+        )
     if user is None or not user.is_active or user.auth_user_id != auth_user_id:
         raise unauthorized()
+
+    try:
+        role = Role(user.role)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Dashboard role is invalid."},
+        ) from None
 
     return AuthUserResponse(
         id=user.id,
         tenant_id=user.tenant_id,
         name=user.name,
         email=user.email,
-        role=user.role,
+        role=role,
     )
 
 

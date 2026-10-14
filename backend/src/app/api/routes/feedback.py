@@ -1,8 +1,10 @@
 """Feedback API routes."""
 
-from fastapi import APIRouter, status
+from fastapi import APIRouter, Depends, status
 
 from app.core.auth import CurrentDashboardUserDep
+from app.core.permissions import EffectivePermissionsDep, require_permission
+from app.core.rbac import Permission
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
 from app.features.feedback import service as feedback_service
@@ -13,27 +15,34 @@ from app.features.schemas import FeedbackCreateRequest, FeedbackResponse, Feedba
 router = APIRouter(prefix="/feedback", tags=["feedback"])
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_permission(Permission.SUBMIT_FEEDBACK))])
 async def create_feedback(
     request: FeedbackCreateRequest,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
     session: DbSessionDep,
+    effective_permissions: EffectivePermissionsDep,
 ) -> FeedbackResponse:
     return await feedback_service.create_feedback(
         session,
         tenant.tenant_id,
         current_user.id,
         request,
+        own_only=Permission.VIEW_CONVERSATIONS not in effective_permissions,
     )
 
 
-@router.patch("/{feedback_id}")
+@router.patch("/{feedback_id}", dependencies=[Depends(require_permission(Permission.SUBMIT_FEEDBACK))])
 async def update_feedback(
     feedback_id: UUID,
     request: FeedbackUpdateRequest,
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
     session: DbSessionDep,
+    effective_permissions: EffectivePermissionsDep,
 ) -> FeedbackResponse:
-    return await feedback_service.update_feedback(session, tenant.tenant_id, feedback_id, request)
+    return await feedback_service.update_feedback(
+        session, tenant.tenant_id, feedback_id, request,
+        acting_user_id=current_user.id,
+        own_only=Permission.VIEW_CONVERSATIONS not in effective_permissions,
+    )

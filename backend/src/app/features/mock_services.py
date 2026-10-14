@@ -273,14 +273,22 @@ def list_messages(limit: int, cursor: str | None = None) -> MessageListResponse:
     return MessageListResponse(items=[message_response()], limit=limit, has_more=False)
 
 
-def dashboard_chat(request: ChatRequest) -> ChatResponse:
+def dashboard_chat(
+    request: ChatRequest,
+    *,
+    include_document_sources: bool = True,
+    allow_sales_tool: bool = True,
+) -> ChatResponse:
     conversation_id = request.conversation_id or MOCK_CONVERSATION_ID
-    message = message_response().model_copy(update={"conversation_id": conversation_id})
+    sources = [source_ref()] if include_document_sources else []
+    message = message_response().model_copy(
+        update={"conversation_id": conversation_id, "sources": sources}
+    )
     return ChatResponse(
         conversation_id=conversation_id,
         message=message,
-        sources=[source_ref()],
-        used_tools=["get_sales"] if request.mode in {"auto", "agent"} else [],
+        sources=sources,
+        used_tools=["get_sales"] if allow_sales_tool and request.mode in {"auto", "agent"} else [],
     )
 
 

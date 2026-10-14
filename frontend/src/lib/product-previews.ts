@@ -32,7 +32,7 @@ export const PRODUCT_PREVIEWS = {
   },
   shopifyChatWidget: {
     src: "/images/product/shopify-chat-widget.svg",
-    alt: "Shopify storefront product page with a customer chat widget answering a public product care question without requiring an account.",
+    alt: "Shopify storefront product page for an everyday cotton T-shirt, with a visible customer chat widget answering a public fit question.",
     aspectRatio: { width: 3, height: 2 },
     sectionOwner: "shopify-widget",
   },

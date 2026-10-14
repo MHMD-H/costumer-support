@@ -28,13 +28,15 @@ async def create_feedback(
     tenant_id: UUID,
     user_id: UUID,
     request: FeedbackCreateRequest,
+    *,
+    own_only: bool = False,
 ) -> FeedbackResponse:
     conversation = await conversation_repository.get_conversation_by_id(
         session,
         tenant_id,
         request.conversation_id,
     )
-    if conversation is None:
+    if conversation is None or conversation.surface != "dashboard" or (own_only and conversation.user_id != user_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Conversation was not found."},
@@ -69,9 +71,17 @@ async def update_feedback(
     tenant_id: UUID,
     feedback_id: UUID,
     request: FeedbackUpdateRequest,
+    *,
+    acting_user_id: UUID | None = None,
+    own_only: bool = False,
 ) -> FeedbackResponse:
     feedback = await feedback_repository.get_feedback_by_id(session, tenant_id, feedback_id)
     if feedback is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Feedback was not found."},
+        )
+    if feedback.surface != "dashboard" or (own_only and feedback.user_id != acting_user_id):
         raise HTTPException(
             status_code=status.HTTP_404_NOT_FOUND,
             detail={"error": "not_found", "message": "Feedback was not found."},

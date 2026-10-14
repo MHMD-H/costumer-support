@@ -1,5 +1,6 @@
 .env
 .env.*
+.uploads/
 .venv/
 venv/
 env/

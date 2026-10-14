@@ -25,6 +25,7 @@ from app.api.routes import (
 )
 from app.core.exceptions import add_exception_handlers
 from app.db.postgres import dispose_engine, validate_database_connection
+from app.features.document_uploads import UploadBodyLimitMiddleware
 
 
 @asynccontextmanager
@@ -49,6 +50,7 @@ def create_app() -> FastAPI:
     )
 
     add_exception_handlers(app)
+    app.add_middleware(UploadBodyLimitMiddleware)
     app.include_router(auth.router)
     app.include_router(shopify.router)
     app.include_router(users.router)

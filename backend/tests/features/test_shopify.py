@@ -68,6 +68,24 @@ def test_begin_connection_hashes_state_before_persistence(shopify_environment, m
     assert captured["state_hash"] != state
 
 
+@pytest.mark.parametrize(("role", "active"), [("team_member", True), ("store_owner", False)])
+def test_begin_connection_requires_active_store_owner(
+    shopify_environment, monkeypatch, role, active
+) -> None:
+    user = User(
+        id=uuid4(), tenant_id=None, auth_user_id=uuid4(), is_active=active,
+        name="Merchant", email="merchant@example.com", role=role,
+    )
+
+    async def create_oauth_state(*_args, **_kwargs):
+        pytest.fail("Unauthorized user must not create OAuth state")
+
+    monkeypatch.setattr(shopify.shopify_repository, "create_oauth_state", create_oauth_state)
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(shopify.begin_connection(None, user=user, shop_domain="merchant.myshopify.com"))
+    assert error.value.status_code == 403
+
+
 def test_unlinked_user_cannot_access_tenant_dashboard() -> None:
     user = AuthUserResponse(
         id=uuid4(), tenant_id=None, name="Merchant", email="merchant@example.com", role="store_owner"
@@ -167,3 +185,54 @@ def test_complete_connection_uses_canonical_identity_and_encrypts_token(
     assert captured["tenant"]["shop_domain"] == "canonical.myshopify.com"
     assert captured["connection"]["shop_domain"] == "canonical.myshopify.com"
     assert "shopify-access-token" not in captured["connection"]["access_token_encrypted"]
+
+
+def test_callback_rechecks_stored_owner_before_tenant_or_token_write(
+    shopify_environment, monkeypatch
+) -> None:
+    state = "state-value"
+    user = User(
+        id=uuid4(), tenant_id=None, auth_user_id=uuid4(), is_active=True,
+        name="Merchant", email="merchant@example.com", role="store_owner",
+    )
+
+    class Transaction:
+        async def __aenter__(self):
+            return None
+
+        async def __aexit__(self, *_args):
+            return False
+
+    class Session:
+        def begin(self):
+            return Transaction()
+
+    async def consume_state(*_args, **_kwargs):
+        return SimpleNamespace(user_id=user.id)
+
+    async def exchange(*_args, **_kwargs):
+        return "shopify-access-token"
+
+    async def canonical_shop(*_args, **_kwargs):
+        return "987654", "canonical.myshopify.com", "Canonical Store"
+
+    async def get_user(*_args, **_kwargs):
+        user.role = "team_member"
+        return user
+
+    async def unexpected_write(*_args, **_kwargs):
+        pytest.fail("Revoked owner authority must prevent tenant and token writes")
+
+    monkeypatch.setattr(shopify.shopify_repository, "consume_oauth_state", consume_state)
+    monkeypatch.setattr(shopify, "exchange_code_for_access_token", exchange)
+    monkeypatch.setattr(shopify, "fetch_canonical_shop", canonical_shop)
+    monkeypatch.setattr(shopify.shopify_repository, "get_user", get_user)
+    monkeypatch.setattr(shopify.shopify_repository, "create_tenant", unexpected_write)
+    monkeypatch.setattr(shopify.shopify_repository, "create_connection", unexpected_write)
+
+    with pytest.raises(HTTPException) as error:
+        asyncio.run(shopify.complete_connection(
+            Session(), state=state, callback_shop_domain="merchant.myshopify.com",
+            code="authorization-code", callback_parameters=callback_parameters(state),
+        ))
+    assert error.value.status_code == 403

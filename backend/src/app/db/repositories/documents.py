@@ -46,6 +46,7 @@ async def list_documents(
 async def create_document(
     session: AsyncSession,
     *,
+    document_id: UUID,
     tenant_id: UUID,
     uploaded_by_user_id: UUID,
     title: str,
@@ -55,6 +56,7 @@ async def create_document(
     metadata: dict,
 ) -> Document:
     document = Document(
+        id=document_id,
         tenant_id=tenant_id,
         uploaded_by_user_id=uploaded_by_user_id,
         title=title,

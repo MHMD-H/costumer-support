@@ -404,6 +404,28 @@ AgentToolListResponse = OffsetPaginationResponse[AgentToolResponse]
 | `/feedback` | POST | Submit feedback for an assistant message | Required | `FeedbackCreateRequest` | `FeedbackResponse` | 201, 401, 403, 404, 422 |
 | `/agent/tools` | GET | List available read-only dashboard agent tools | Required | Query params: `limit`, `offset` | `AgentToolListResponse` | 200, 401, 403 |
 
+### Dashboard authorization policy
+
+Protected operations check the application user's stored role and current
+tenant before applying these permissions. `/auth/me` returns only the verified
+application identity. The authenticated `/shopify/connect` path uses
+`connect_shopify_store` for an unlinked store owner; its signed, single-use
+callback remains part of the onboarding flow.
+
+| Operations | Required permission | Additional restriction |
+|---|---|---|
+| User list/detail; user update | `view_users`; `manage_users` | User list and update remain store-owner/admin only. |
+| Permission list; permission update | `view_permissions`; `manage_permissions` | Store-owner/admin only; only permitted grants to another tenant-local team member. |
+| Tenant read; tenant update | `view_tenant`; `manage_tenant` | Store-owner/admin only and current tenant only. |
+| Product list/detail; order list/detail; sales summary | `view_products`; `view_orders`; `view_sales` | Sales summary remains store-owner/team-member/admin only. |
+| Campaign list/detail; create/update | `view_campaigns`; `manage_campaigns` | Campaign routes remain store-owner/marketing-manager/admin only. |
+| Document list/detail/chunks; upload; metadata/content update | `view_documents`; `upload_documents`; `manage_documents` | Dashboard retrieval requires document visibility and tenant checks. |
+| Conversation list/detail/messages/update; create | `view_conversations` or `create_conversations` for own records; `create_conversations` for creation | A team member with only `create_conversations` cannot access another user's conversation. Document-sourced messages also require `view_documents`. |
+| Dashboard chat/stream | `use_dashboard_chat` | Document sources/RAG require `view_documents`; a tool requires `use_agent_tools` and its underlying data permission. |
+| Search | `search_knowledge` | Each result/scope also requires its data permission: documents, products, orders, sales, or campaigns. `all` includes only permitted scopes. |
+| Feedback create/update | `submit_feedback` | A user without tenant-wide conversation access may affect only their own dashboard conversation/feedback. |
+| Agent tool list/update | `use_agent_tools` | Known read-only tools are filtered by their data permission; updates are store-owner/admin only. |
+
 ## Public Widget Endpoints
 
 | Endpoint | Method | Purpose | Auth | Request Body | Response Body | Status Codes |

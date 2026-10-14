@@ -3,6 +3,7 @@
 from uuid import UUID
 
 from sqlalchemy import select
+from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -29,6 +30,19 @@ async def get_user_by_auth_user_id(session: AsyncSession, auth_user_id: UUID) ->
         select(User).options(selectinload(User.tenant)).where(User.auth_user_id == auth_user_id)
     )
     return result.scalar_one_or_none()
+
+
+async def create_unlinked_store_owner(
+    session: AsyncSession, *, auth_user_id: UUID, email: str
+) -> User | None:
+    """Create the initial merchant once, without changing an existing account."""
+    await session.execute(
+        pg_insert(User)
+        .values(auth_user_id=auth_user_id, tenant_id=None, name=email, email=email, role="store_owner")
+        .on_conflict_do_nothing(constraint="users_auth_user_id_key")
+    )
+    await session.commit()
+    return await get_user_by_auth_user_id(session, auth_user_id)
 
 
 async def get_user_by_email(session: AsyncSession, tenant_id: UUID, email: str) -> User | None:

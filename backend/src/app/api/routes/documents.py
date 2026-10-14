@@ -7,6 +7,7 @@ from fastapi import APIRouter, Depends, File, Form, Query, UploadFile, status
 
 from app.core.auth import CurrentDashboardUserDep
 from app.core.permissions import require_permission
+from app.core.rbac import Permission
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
 from app.features import documents as document_service
@@ -21,7 +22,7 @@ from app.features.schemas import (
 router = APIRouter(prefix="/documents", tags=["documents"])
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_permission(Permission.VIEW_DOCUMENTS))])
 async def list_documents(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
@@ -49,7 +50,7 @@ async def list_documents(
 @router.post(
     "",
     status_code=status.HTTP_201_CREATED,
-    dependencies=[Depends(require_permission("upload_documents"))],
+    dependencies=[Depends(require_permission(Permission.UPLOAD_DOCUMENTS))],
 )
 async def upload_document(
     current_user: CurrentDashboardUserDep,
@@ -63,13 +64,13 @@ async def upload_document(
         session,
         tenant_id=tenant.tenant_id,
         uploaded_by_user_id=current_user.id,
-        filename=file.filename or "uploaded.txt",
+        file=file,
         title=title,
         visibility=visibility,
     )
 
 
-@router.get("/{document_id}")
+@router.get("/{document_id}", dependencies=[Depends(require_permission(Permission.VIEW_DOCUMENTS))])
 async def get_document(
     document_id: UUID,
     current_user: CurrentDashboardUserDep,
@@ -79,7 +80,7 @@ async def get_document(
     return await document_service.get_document(session, tenant.tenant_id, document_id)
 
 
-@router.patch("/{document_id}")
+@router.patch("/{document_id}", dependencies=[Depends(require_permission(Permission.MANAGE_DOCUMENTS))])
 async def update_document(
     document_id: UUID,
     request: DocumentUpdateRequest,
@@ -92,7 +93,7 @@ async def update_document(
 
 @router.put(
     "/{document_id}",
-    dependencies=[Depends(require_permission("upload_documents"))],
+    dependencies=[Depends(require_permission(Permission.MANAGE_DOCUMENTS))],
 )
 async def replace_document(
     document_id: UUID,
@@ -114,7 +115,7 @@ async def replace_document(
     )
 
 
-@router.get("/{document_id}/chunks")
+@router.get("/{document_id}/chunks", dependencies=[Depends(require_permission(Permission.VIEW_DOCUMENTS))])
 async def list_document_chunks(
     document_id: UUID,
     current_user: CurrentDashboardUserDep,

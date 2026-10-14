@@ -42,7 +42,7 @@ async def consume_oauth_state(
 
 async def get_user(session: AsyncSession, user_id: UUID) -> User | None:
     result = await session.execute(
-        select(User).options(selectinload(User.tenant)).where(User.id == user_id)
+        select(User).options(selectinload(User.tenant)).where(User.id == user_id).with_for_update(of=User)
     )
     return result.scalar_one_or_none()
 

@@ -4,7 +4,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from uuid import UUID, uuid4
 
-from fastapi import HTTPException, status
+from fastapi import HTTPException, UploadFile, status
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.models import Document, DocumentChunk
@@ -19,6 +19,7 @@ from app.features.schemas import (
     DocumentResponse,
     DocumentUpdateRequest,
 )
+from app.features.document_uploads import read_validated_upload, save_upload, remove_upload
 
 
 def document_type_for_filename(filename: str) -> str:
@@ -100,7 +101,7 @@ async def create_document(
     *,
     tenant_id: UUID,
     uploaded_by_user_id: UUID,
-    filename: str,
+    file: UploadFile,
     title: str | None,
     visibility: str,
 ) -> DocumentCreateResponse:
@@ -111,16 +112,24 @@ async def create_document(
             detail={"error": "not_found", "message": "Uploading user was not found."},
         )
 
-    document = await document_repository.create_document(
-        session,
-        tenant_id=tenant_id,
-        uploaded_by_user_id=uploaded_by_user_id,
-        title=title or filename,
-        document_type=document_type_for_filename(filename),
-        source=filename,
-        visibility=visibility,
-        metadata={},
-    )
+    filename, document_type, content = await read_validated_upload(file)
+    document_id = uuid4()
+    try:
+        save_upload(tenant_id, document_id, document_type, content)
+        document = await document_repository.create_document(
+            session,
+            document_id=document_id,
+            tenant_id=tenant_id,
+            uploaded_by_user_id=uploaded_by_user_id,
+            title=title or filename,
+            document_type=document_type,
+            source=filename,
+            visibility=visibility,
+            metadata={},
+        )
+    except Exception:
+        remove_upload(tenant_id, document_id, document_type)
+        raise
     return to_document_create_response(document)
 
 

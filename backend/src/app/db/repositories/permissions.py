@@ -6,7 +6,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.db.models import Permission
+from app.db.models import Permission, User
 from app.db.repositories.common import count_for_statement
 
 
@@ -35,6 +35,22 @@ async def get_permission_by_value(
     return result.scalar_one_or_none()
 
 
+async def list_user_permission_values(
+    session: AsyncSession,
+    tenant_id: UUID,
+    user_id: UUID,
+) -> list[tuple[str, UUID]]:
+    result = await session.execute(
+        select(Permission.permission, Permission.tenant_id)
+        .join(User, User.id == Permission.user_id)
+        .where(
+            Permission.user_id == user_id,
+            User.tenant_id == tenant_id,
+        )
+    )
+    return list(result.all())
+
+
 async def list_permissions(
     session: AsyncSession,
     tenant_id: UUID,
@@ -47,7 +63,12 @@ async def list_permissions(
     if user_id is not None:
         criteria.append(Permission.user_id == user_id)
 
-    statement = select(Permission).where(*criteria).order_by(Permission.created_at.desc(), Permission.id.desc())
+    statement = (
+        select(Permission)
+        .join(User, User.id == Permission.user_id)
+        .where(*criteria, User.tenant_id == tenant_id)
+        .order_by(Permission.created_at.desc(), Permission.id.desc())
+    )
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total

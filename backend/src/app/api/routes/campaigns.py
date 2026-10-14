@@ -6,7 +6,8 @@ from uuid import UUID
 from fastapi import APIRouter, Depends, Query, status
 
 from app.core.auth import CurrentDashboardUserDep
-from app.core.permissions import require_roles
+from app.core.permissions import require_permission, require_roles
+from app.core.rbac import Permission, Role
 from app.core.tenant_context import DashboardTenantDep
 from app.db.postgres import DbSessionDep
 from app.features.commerce import campaigns as campaign_service
@@ -20,11 +21,11 @@ from app.features.schemas import (
 router = APIRouter(
     prefix="/campaigns",
     tags=["campaigns"],
-    dependencies=[Depends(require_roles("store_owner", "marketing_manager", "admin"))],
+    dependencies=[Depends(require_roles(Role.STORE_OWNER, Role.MARKETING_MANAGER, Role.ADMIN))],
 )
 
 
-@router.get("")
+@router.get("", dependencies=[Depends(require_permission(Permission.VIEW_CAMPAIGNS))])
 async def list_campaigns(
     current_user: CurrentDashboardUserDep,
     tenant: DashboardTenantDep,
@@ -42,7 +43,7 @@ async def list_campaigns(
     )
 
 
-@router.post("", status_code=status.HTTP_201_CREATED)
+@router.post("", status_code=status.HTTP_201_CREATED, dependencies=[Depends(require_permission(Permission.MANAGE_CAMPAIGNS))])
 async def create_campaign(
     request: CampaignCreateRequest,
     current_user: CurrentDashboardUserDep,
@@ -52,7 +53,7 @@ async def create_campaign(
     return await campaign_service.create_campaign(session, tenant.tenant_id, request)
 
 
-@router.get("/{campaign_id}")
+@router.get("/{campaign_id}", dependencies=[Depends(require_permission(Permission.VIEW_CAMPAIGNS))])
 async def get_campaign(
     campaign_id: UUID,
     current_user: CurrentDashboardUserDep,
@@ -62,7 +63,7 @@ async def get_campaign(
     return await campaign_service.get_campaign(session, tenant.tenant_id, campaign_id)
 
 
-@router.patch("/{campaign_id}")
+@router.patch("/{campaign_id}", dependencies=[Depends(require_permission(Permission.MANAGE_CAMPAIGNS))])
 async def update_campaign(
     campaign_id: UUID,
     request: CampaignUpdateRequest,

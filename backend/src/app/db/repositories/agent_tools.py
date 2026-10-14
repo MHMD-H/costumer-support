@@ -16,6 +16,7 @@ async def list_agent_tools(
     *,
     limit: int,
     offset: int,
+    allowed_names: frozenset[str] | None = None,
 ) -> tuple[list[AgentTool], int]:
     statement = (
         select(AgentTool)
@@ -26,6 +27,8 @@ async def list_agent_tools(
         )
         .order_by(AgentTool.created_at.desc(), AgentTool.id.desc())
     )
+    if allowed_names is not None:
+        statement = statement.where(AgentTool.name.in_(allowed_names))
     total = await count_for_statement(session, statement)
     result = await session.execute(statement.limit(limit).offset(offset))
     return list(result.scalars().all()), total

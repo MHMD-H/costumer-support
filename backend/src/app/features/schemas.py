@@ -5,14 +5,41 @@ from decimal import Decimal
 from typing import Annotated, Any, Generic, Literal, TypeVar
 from uuid import UUID, uuid4
 
-from pydantic import BaseModel, Field
+from fastapi import HTTPException, status
+from pydantic import BaseModel, BeforeValidator, Field
+
+from app.core.rbac import Permission, Role
 
 EmailStr = Annotated[
     str,
     Field(pattern=r"^[^@\s]+@[^@\s]+\.[^@\s]+$"),
 ]
 
-DashboardRole = Literal["store_owner", "marketing_manager", "team_member", "admin"]
+DashboardRole = Role
+
+
+def _checked_role_input(value: object) -> Role | None:
+    if value is None:
+        return None
+    try:
+        return Role(value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Dashboard role is invalid."},
+        ) from None
+
+
+def _checked_permission_input(value: object) -> Permission | None:
+    if value is None:
+        return None
+    try:
+        return Permission(value)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Dashboard permission is invalid."},
+        ) from None
 
 
 class ErrorDetail(BaseModel):
@@ -74,7 +101,7 @@ class UserListResponse(OffsetPaginationResponse[UserResponse]):
 class UserUpdateRequest(BaseModel):
     name: str | None = None
     email: EmailStr | None = None
-    role: DashboardRole | None = None
+    role: Annotated[DashboardRole | None, BeforeValidator(_checked_role_input)] = None
 
 
 class TenantResponse(BaseModel):
@@ -113,7 +140,7 @@ class PermissionResponse(BaseModel):
     id: UUID
     tenant_id: UUID
     user_id: UUID
-    permission: str
+    permission: Permission
     created_at: datetime
 
 
@@ -122,7 +149,7 @@ class PermissionListResponse(OffsetPaginationResponse[PermissionResponse]):
 
 
 class PermissionUpdateRequest(BaseModel):
-    permission: str | None = None
+    permission: Annotated[Permission | None, BeforeValidator(_checked_permission_input)] = None
 
 
 class ProductResponse(BaseModel):
