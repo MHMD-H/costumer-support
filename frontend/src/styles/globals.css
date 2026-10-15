@@ -77,6 +77,16 @@ a {
   color: inherit;
 }
 
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+
 :focus-visible {
   outline: 3px solid var(--color-focus);
   outline-offset: 3px;
@@ -792,6 +802,12 @@ a {
   line-height: 1.45;
 }
 
+.auth-form__notice--error {
+  border-color: #e7c4c0;
+  color: #81251e;
+  background: #fff8f7;
+}
+
 .auth-notice {
   margin-top: 1.25rem;
   padding: 0.875rem 1rem;
@@ -841,7 +857,306 @@ a {
   text-align: center;
 }
 
+.onboarding-shell {
+  display: flex;
+  min-height: 100vh;
+  min-height: 100svh;
+  flex-direction: column;
+}
+
+.onboarding-shell__header {
+  position: relative;
+  z-index: 1;
+  width: min(calc(100% - 3rem), var(--content-width));
+  margin-inline: auto;
+  padding-block: 1.5rem 1rem;
+}
+
+.onboarding-shell__header-inner {
+  display: flex;
+  min-height: 2.5rem;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.onboarding-shell__logout {
+  display: inline-flex;
+  align-items: center;
+}
+
+.onboarding-shell__logout :is(button, a) {
+  border: 0;
+  padding: 0.25rem 0;
+  color: var(--color-brand-hover);
+  background: transparent;
+  font-size: var(--text-sm);
+  cursor: pointer;
+  text-decoration: none;
+}
+
+.onboarding-shell__logout :is(button, a):hover {
+  color: var(--color-ink);
+}
+
+.onboarding-shell__main {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  width: min(calc(100% - 2rem), 58rem);
+  flex: 1;
+  align-items: center;
+  justify-content: center;
+  margin-inline: auto;
+  padding-block: 1.5rem 2rem;
+}
+
+.onboarding-shell__content {
+  width: 100%;
+}
+
+.onboarding-progress {
+  position: relative;
+  z-index: 1;
+  width: min(calc(100% - 3rem), 58rem);
+  margin: 0 auto;
+  padding-block: 1rem 2rem;
+}
+
+.onboarding-progress__steps {
+  display: flex;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.onboarding-progress__step {
+  position: relative;
+  display: flex;
+  min-width: 0;
+  flex: 1;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.onboarding-progress__step:not(:first-child)::before {
+  position: absolute;
+  top: 0.625rem;
+  right: 50%;
+  left: -50%;
+  height: 1.5px;
+  background: #cbd2d8;
+  content: "";
+}
+
+.onboarding-progress__step--complete:not(:first-child)::before,
+.onboarding-progress__step--current:not(:first-child)::before {
+  background: var(--color-brand);
+}
+
+.onboarding-progress__marker {
+  position: relative;
+  z-index: 1;
+  display: grid;
+  width: 1.25rem;
+  height: 1.25rem;
+  flex: none;
+  place-items: center;
+  border: 2px solid #cbd2d8;
+  border-radius: 50%;
+  color: #fff;
+  background: #fff;
+}
+
+.onboarding-progress__step--complete .onboarding-progress__marker {
+  border-color: var(--color-brand);
+  background: var(--color-brand);
+}
+
+.onboarding-progress__step--current .onboarding-progress__marker {
+  border-color: var(--color-brand);
+}
+
+.onboarding-progress__check {
+  width: 0.875rem;
+  height: 0.875rem;
+}
+
+.onboarding-progress__dot {
+  width: 0.5rem;
+  height: 0.5rem;
+  border-radius: 50%;
+  background: var(--color-brand);
+}
+
+.onboarding-progress__label {
+  color: var(--color-muted);
+  font-size: var(--text-xs);
+  line-height: 1.3;
+}
+
+.onboarding-progress__step--current .onboarding-progress__label {
+  color: var(--color-ink);
+  font-weight: 600;
+}
+
+.verify-email {
+  max-width: 42rem;
+  margin-inline: auto;
+  color: #101820;
+  text-align: center;
+}
+
+.verify-email__eyebrow {
+  margin: 0 0 0.75rem;
+  color: var(--color-brand);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.22em;
+  line-height: 1.4;
+  text-transform: uppercase;
+}
+
+.verify-email h1 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.75rem, 5vw, 4rem);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1.1;
+}
+
+.verify-email__description {
+  margin: 0.75rem 0 0;
+  color: #687384;
+  font-size: clamp(1rem, 1.8vw, 1.25rem);
+  line-height: 1.5;
+}
+
+.verify-email__description strong {
+  font-weight: 400;
+  overflow-wrap: anywhere;
+}
+
+.verify-email__card {
+  width: min(100%, 34.25rem);
+  margin: 2.75rem auto 0;
+  padding: 2.35rem 2.65rem 2.2rem;
+  border: 1px solid #dbe1e4;
+  border-radius: 0.75rem;
+  background: rgb(255 255 255 / 96%);
+  box-shadow: 0 14px 36px rgb(16 24 32 / 7%);
+}
+
+.verify-email__fieldset {
+  min-width: 0;
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.verify-email__fieldset legend {
+  width: 100%;
+  padding: 0;
+  color: #101820;
+  font-size: 1.375rem;
+  font-weight: 700;
+  letter-spacing: -0.025em;
+  text-align: center;
+}
+
+.verify-email__digits {
+  display: grid;
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  gap: 0.875rem;
+  margin-top: 1.5rem;
+}
+
+.verify-email__digit input {
+  display: block;
+  width: 100%;
+  height: 4.5rem;
+  border: 1px solid #d2d9de;
+  border-radius: 0.625rem;
+  color: #101820;
+  background: #fff;
+  font-size: 1.75rem;
+  font-weight: 650;
+  text-align: center;
+  caret-color: var(--color-brand);
+}
+
+.verify-email__digit input:focus-visible {
+  border-color: var(--color-brand);
+}
+
+.verify-email__fieldset p {
+  margin: 1rem 0 0;
+  color: #687384;
+  font-size: var(--text-sm);
+}
+
+.verify-email__submit {
+  width: 100%;
+  margin-top: 1.8rem;
+}
+
+.verify-email__error,
+.verify-email__status {
+  margin: 1rem 0 0;
+  font-size: var(--text-sm);
+  line-height: 1.4;
+}
+
+.verify-email__error {
+  color: #a02d23;
+}
+
+.verify-email__status {
+  color: var(--color-brand-hover);
+}
+
+.verify-email__resend {
+  margin: 1.25rem 0 0;
+  color: #687384;
+  font-size: var(--text-sm);
+}
+
+.verify-email__resend button {
+  border: 0;
+  padding: 0;
+  color: var(--color-brand);
+  background: transparent;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.verify-email__resend button:disabled {
+  color: #687384;
+  cursor: default;
+  text-decoration: none;
+}
+
 @media (max-width: 40rem) {
+  .verify-email__card {
+    margin-top: 2rem;
+    padding: 1.5rem 1.1rem;
+  }
+
+  .verify-email__digits {
+    gap: 0.4rem;
+  }
+
+  .verify-email__digit input {
+    height: 3.4rem;
+    border-radius: 0.45rem;
+    font-size: 1.4rem;
+  }
+
   .section-container {
     width: min(calc(100% - 2rem), var(--content-width));
   }

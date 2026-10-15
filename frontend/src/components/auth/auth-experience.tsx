@@ -1,7 +1,8 @@
 "use client";
 
 import Link from "next/link";
-import { type FormEvent, useState } from "react";
+import { type FormEvent, useEffect, useState } from "react";
+import { signUp } from "../../lib/auth";
 
 import { BrandMark } from "../ui/brand-mark";
 import { ContourBackground } from "../ui/contour-background";
@@ -64,20 +65,38 @@ export function AuthExperience({ view }: { view: AuthView }) {
   const content = VIEW_CONTENT[view];
   const hasForm = view === "login" || view === "register" || view === "forgot";
 
-  function handlePreviewSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (view === "login" && new URLSearchParams(window.location.search).get("verification") === "expired") {
+      setNotice("Your verification session is missing or expired. Sign in and request a new code to continue.");
+    }
+  }, [view]);
+
+  async function handlePreviewSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsPreparing(true);
     setNotice("");
 
+    if (view === "register") {
+      const form = new FormData(event.currentTarget);
+      const email = String(form.get("email") ?? "").trim().toLowerCase();
+      const password = String(form.get("password") ?? "");
+      try {
+        await signUp(email, password);
+        sessionStorage.setItem("pendingVerificationEmail", email);
+        window.location.assign("/onboarding/verify-email");
+      } catch (error) {
+        setNotice(error instanceof Error ? error.message : "We couldn't create your account. Please try again.");
+      } finally {
+        setIsPreparing(false);
+      }
+      return;
+    }
+
     window.setTimeout(() => {
       setIsPreparing(false);
-      setNotice(
-        view === "login"
-          ? "Preview complete. Your details were not sent and you are not signed in."
-          : view === "register"
-            ? "Preview complete. Your details were not sent and no account was created."
-            : "Preview complete. No reset email was sent.",
-      );
+      setNotice(view === "login"
+        ? "Preview complete. Your details were not sent and you are not signed in."
+        : "Preview complete. No reset email was sent.");
     }, 300);
   }
 
@@ -157,11 +176,11 @@ export function AuthExperience({ view }: { view: AuthView }) {
               ) : null}
 
               {notice ? (
-                <p aria-live="polite" className="auth-form__notice" role="status">{notice}</p>
+                <p aria-live="polite" className={`auth-form__notice${view === "login" && notice.includes("verification session") ? " auth-form__notice--error" : ""}`} role="status">{notice}</p>
               ) : null}
 
               <button aria-busy={isPreparing} className="primary-button auth-submit" disabled={isPreparing} type="submit">
-                <span>{isPreparing ? "Preparing preview…" : view === "login" ? "Log in" : view === "register" ? "Create account" : "Send reset link"}</span>
+                <span>{isPreparing ? view === "register" ? "Creating account…" : "Preparing preview…" : view === "login" ? "Log in" : view === "register" ? "Create account" : "Send reset link"}</span>
                 {!isPreparing && view === "login" ? <ArrowIcon /> : null}
               </button>
             </form>
