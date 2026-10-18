@@ -17,3 +17,7 @@ The upload limit is 5 MB per file. This local staging requires a shared,
 durable storage and malware-scanning decision before production merchant
 uploads. Files remain `uploaded` until Tasks 21–22 add ingestion and status
 tracking.
+
+Task 21 provides a document-service call into the existing LangChain pipeline
+for stored TXT, PDF, and DOCX files. Uploads still remain `uploaded` until
+Task 22 schedules ingestion and persists chunks and processing status.

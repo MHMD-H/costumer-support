@@ -764,3 +764,180 @@ real unless its separate tool integration has been completed.
 **Tests:** API response and streaming events, source consistency, conversation
 ownership, upload-to-answer integration, failure behavior, and permission and
 tenant isolation.
+
+# Shopify Connection Onboarding Frontend Phase
+
+## Scope and backend boundary
+
+Build the five-step dashboard-user onboarding flow after sign-up. The visual
+references live in `frontend/public/images/onboarding-reference/` as SVG
+wrappers with their corresponding PNG source images. They are reference assets,
+not production screenshots embedded in the UI.
+
+The flow is for authenticated `store_owner` dashboard users only:
+
+1. Verify email code.
+2. Connect your Shopify store.
+3. Enter Shopify store address.
+4. Connect your store securely after returning from Shopify authorization.
+5. Your Shopify store is ready, followed by `Open your workspace`.
+
+**Do not change backend code, FastAPI routes, database models, migrations,
+Shopify OAuth code, Supabase configuration, or API contracts in this phase.**
+Use only the existing integration boundaries:
+
+- Supabase Auth owns email-verification state and code/session handling.
+- `GET /shopify/connect?shop_domain=<domain>` is the existing protected
+  server-side OAuth start route for an authorized store owner.
+- The existing `/shopify/callback` completes Shopify authorization on the
+  backend and redirects to `SHOPIFY_POST_CONNECT_REDIRECT_URI`.
+- `/auth/me` remains the trusted frontend read for the current application
+  user after the callback redirect.
+
+The browser must never receive a Shopify client secret, access token, OAuth
+state value, client-provided tenant ID, or a backend connection-complete claim
+that has not been verified through the existing backend flow.
+
+## Required skills
+
+- `ui-ux-pro-max` for visual hierarchy, form states, responsiveness, and the
+  approved contour-line pattern.
+- `frontend-design` to preserve the existing white-and-emerald product
+  identity without introducing a generic onboarding wizard.
+- `supabase:supabase` for the Supabase email-verification client flow only.
+- `vercel-react-best-practices` for App Router, image assets, and client
+  component boundaries.
+- `webapp-testing` for browser-level flow, error-state, and reduced-motion
+  verification.
+
+## Task 26: Register onboarding reference assets and shared shell
+
+**Goal:** Make the approved visual references discoverable and create the
+shared shell used by every onboarding screen.
+
+**Required work:**
+
+- Keep the five reference SVGs and their source PNG renders in
+  `frontend/public/images/onboarding-reference/`; do not move or delete the
+  source PNGs referenced by the SVG wrappers.
+- Add a typed onboarding reference map that names each step, its reference
+  SVG path, its route, and its accessible description.
+- Build a shared onboarding shell with the AI Commerce Copilot mark, optional
+  `Log out` action, white background, pale organic emerald contour lines, and
+  the five-step progress indicator.
+- Use the reference images only for visual comparison/documentation. Build
+  real semantic form controls and status UI; do not render a full-screen
+  screenshot as the interface.
+
+**Expected result:** Each onboarding route shares one consistent layout and
+has an explicit visual reference without duplicating styling.
+
+## Task 27: Build the email-verification screen
+
+**Goal:** Give new dashboard users a clear, accessible email-verification
+step after sign-up.
+
+**Required work:**
+
+- Build the `Verify email code` screen to match
+  `verify-email-code.svg`: six distinct code fields, visible labels, resend
+  action, loading state, expired/incorrect-code errors, and a completed first
+  progress step.
+- Integrate with the existing Supabase Auth client only. Do not create a
+  FastAPI verification route or store a verification code in frontend state
+  beyond the current submission.
+- After Supabase confirms the user’s email/session state, continue to the
+  Shopify connection screen. A missing or expired session returns the user to
+  sign-in with an actionable message.
+
+**Tests:** Keyboard code entry and paste, screen-reader labels, resend cooldown,
+invalid/expired code, verified continuation, and reduced-motion rendering.
+
+## Task 28: Build Shopify connection and domain-entry screens
+
+**Goal:** Collect a valid Shopify domain and start the existing OAuth flow
+without weakening its authorization boundary.
+
+**Required work:**
+
+- Build the `Connect your Shopify store` screen from
+  `connect-shopify-store.svg`, including its ownership/data-access assurances.
+- Build the `Enter your Shopify store address` screen from
+  `enter-shopify-domain.svg`. Use an accessible split-domain input presentation
+  for `https://<store>.myshopify.com`, but normalize it into the exact
+  `shop_domain` query value expected by the existing backend route.
+- Validate the domain format in the frontend for immediate feedback, while
+  treating backend validation as authoritative. Do not accept arbitrary URLs,
+  paths, protocols, or a tenant identifier.
+- When the user continues, invoke only the existing authenticated
+  `/shopify/connect` flow and allow its server redirect to navigate to Shopify.
+  Do not construct an OAuth authorization URL, state parameter, or Shopify
+  request in the browser.
+- Handle existing backend `400`, `401`, `403`, and `409` outcomes next to the
+  relevant form/action without exposing sensitive detail.
+
+**Tests:** Valid and invalid `.myshopify.com` input, unavailable session,
+insufficient role, already-connected store, route redirect initiation, and
+mobile layout.
+
+## Task 29: Build the post-authorization connection-progress screen
+
+**Goal:** Explain the secure platform-to-Shopify handoff after Shopify sends
+the user back to the configured post-connect frontend route.
+
+**Required work:**
+
+- Build the `Connecting your store securely` state matching
+  `connecting-shopify-store.svg`: platform-to-Shopify connection visual,
+  completed ownership/data-access statuses, active workspace-preparation
+  status, and no false success claim.
+- Route the existing backend callback redirect to this frontend screen through
+  the configured `SHOPIFY_POST_CONNECT_REDIRECT_URI`; do not change the backend
+  callback itself.
+- Read only trusted current-user state through `/auth/me` to decide whether the
+  backend-created tenant/store connection is available. Never infer success
+  from a frontend redirect, a query parameter, or a client-visible OAuth value.
+- Use bounded polling or a user-initiated retry only while the trusted state is
+  pending. Stop polling on completion, failure, unmount, or timeout. Show a
+  calm retry/support state instead of an indefinite spinner.
+
+**Tests:** Pending state, successful tenant/store resolution, expired session,
+callback failure/invalid state redirect outcome, timeout, cancellation, and no
+secret or OAuth state exposed in the DOM or browser storage.
+
+## Task 30: Build the connected-store success screen and workspace handoff
+
+**Goal:** Confirm the completed backend connection and move the user into the
+owner workspace.
+
+**Required work:**
+
+- Build the `Your Shopify store is ready` screen matching
+  `shopify-store-ready.svg`, including verified/access-configured/workspace-
+  created statuses and all five completed progress steps.
+- Display it only after the trusted `/auth/me` result confirms the expected
+  connected application state. Do not expose a shop access token, shop ID, or
+  private store data in the success page.
+- `Open your workspace` must route to the existing authenticated dashboard
+  entry point. The settings link may be inactive until an existing settings
+  route is available; do not invent a backend settings API.
+
+**Tests:** Direct navigation guards, completed state, workspace navigation,
+browser back behavior, small-screen layout, and accessible success messaging.
+
+## Task 31: Verify the complete onboarding journey
+
+**Goal:** Confirm the five-screen visual flow and its use of existing trusted
+services.
+
+**Required work:**
+
+- Compare each desktop screen against its SVG reference for contour-line
+  density, white/emerald palette, typography, card scale, and progress state.
+- Verify the journey from a verified Supabase user to `/shopify/connect`, the
+  external Shopify handoff, configured callback return, pending connection,
+  verified success, and workspace navigation.
+- Verify that the frontend has not changed backend routes, schema, migration,
+  OAuth implementation, secrets, or API contracts.
+- Run the frontend build and focused browser tests before marking this phase
+  complete.

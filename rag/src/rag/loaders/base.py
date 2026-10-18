@@ -23,12 +23,13 @@ class LoaderContext:
     visibility: Visibility = "internal"
     title: str | None = None
     document_id: str | None = None
+    canonical_source: str | None = None
 
     def metadata(self, *, _ingested_at: str | None = None, **loader_metadata: Any) -> dict[str, Any]:
         """Merge LangChain metadata with the project's ingestion metadata."""
         metadata = {key: value for key, value in loader_metadata.items() if value is not None}
         source = metadata.get("source") or self.source
-        canonical_source = _canonical_source(self.source_type, str(source))
+        canonical_source = self.canonical_source or _canonical_source(self.source_type, str(source))
         document_id = self.document_id or str(
             uuid5(NAMESPACE_URL, f"{self.tenant_id}:{self.source_type}:{canonical_source}")
         )
