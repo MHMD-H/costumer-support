@@ -1,6 +1,7 @@
 # Standalone RAG ingestion
 
-Install dependencies with `python -m pip install -r rag/requirements.txt`.
+Install from the repository root with `python -m pip install -r requirements.txt`.
+This installs `rag/` as an editable package for the FastAPI document service.
 
 The ingestion flow is independent of FastAPI:
 
@@ -22,4 +23,8 @@ testable without API keys. `CSVLoader` intentionally raises `NotImplementedError
 FAQ/knowledge, catalog, order, and sales rows require distinct formatting,
 privacy, identifier, update, and chunking policies.
 
-No PostgreSQL or backend service is used in this phase.
+For accepted dashboard uploads, `app.features.documents.ingest_uploaded_document`
+passes the tenant-scoped PostgreSQL document ID, staged path, title, visibility,
+and safe source name to this pipeline. It returns chunks and Chroma vector IDs.
+Scheduling, PostgreSQL chunk persistence, and status transitions belong to
+Task 22; Task 21 does not start ingestion from the upload route automatically.

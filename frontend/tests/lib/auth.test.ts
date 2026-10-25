@@ -2,11 +2,14 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 
 const auth = {
   getSession: vi.fn(),
+  getUser: vi.fn(),
+  resend: vi.fn(),
   resetPasswordForEmail: vi.fn(),
   signInWithPassword: vi.fn(),
   signOut: vi.fn(),
   signUp: vi.fn(),
   updateUser: vi.fn(),
+  verifyOtp: vi.fn(),
 };
 
 vi.mock("@supabase/supabase-js", () => ({
@@ -20,6 +23,8 @@ import {
   signOut,
   signUp,
   updatePassword,
+  resendSignUpCode,
+  verifySignUpCode,
 } from "../../src/lib/auth";
 
 describe("Supabase dashboard authentication", () => {
@@ -86,5 +91,24 @@ describe("Supabase dashboard authentication", () => {
       redirectTo: "http://localhost:3000/reset-password",
     });
     expect(auth.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("verifies a signup code and checks confirmed Supabase session state", async () => {
+    auth.verifyOtp.mockResolvedValue({ data: { session: { access_token: "token" }, user: { email_confirmed_at: "2026-10-15" } }, error: null });
+    auth.getUser.mockResolvedValue({ data: { user: { email: "new@example.com", email_confirmed_at: "2026-10-15" } }, error: null });
+
+    await verifySignUpCode("new@example.com", "123456");
+
+    expect(auth.verifyOtp).toHaveBeenCalledWith({ email: "new@example.com", token: "123456", type: "email" });
+    expect(auth.getUser).toHaveBeenCalledOnce();
+  });
+
+  it("rejects verification without a confirmed session and resends through Supabase", async () => {
+    auth.verifyOtp.mockResolvedValue({ data: { session: null, user: null }, error: null });
+    auth.resend.mockResolvedValue({ error: null });
+
+    await expect(verifySignUpCode("new@example.com", "123456")).rejects.toThrow("verification session has expired");
+    await resendSignUpCode("new@example.com");
+    expect(auth.resend).toHaveBeenCalledWith({ type: "signup", email: "new@example.com" });
   });
 });

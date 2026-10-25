@@ -1,7 +1,9 @@
 """Document metadata use cases."""
 
+import asyncio
 from datetime import datetime, timezone
 from pathlib import Path
+from typing import TYPE_CHECKING
 from uuid import UUID, uuid4
 
 from fastapi import HTTPException, UploadFile, status
@@ -19,7 +21,10 @@ from app.features.schemas import (
     DocumentResponse,
     DocumentUpdateRequest,
 )
-from app.features.document_uploads import read_validated_upload, save_upload, remove_upload
+from app.features.document_uploads import MAX_UPLOAD_BYTES, read_validated_upload, save_upload, remove_upload, upload_path
+
+if TYPE_CHECKING:
+    from rag.ingestion import IngestionPipeline, IngestionResult
 
 
 def document_type_for_filename(filename: str) -> str:
@@ -131,6 +136,42 @@ async def create_document(
         remove_upload(tenant_id, document_id, document_type)
         raise
     return to_document_create_response(document)
+
+
+async def ingest_uploaded_document(
+    session: AsyncSession,
+    tenant_id: UUID,
+    document_id: UUID,
+    *,
+    pipeline: "IngestionPipeline",
+) -> "IngestionResult":
+    """Index one accepted file; Task 22 will own scheduling and DB chunk/status writes."""
+    document = await document_repository.get_document_by_id(session, tenant_id, document_id)
+    if document is None:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail={"error": "not_found", "message": "Document was not found."},
+        )
+    if document.status != "uploaded":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={"error": "conflict", "message": "Document is not ready for ingestion."},
+        )
+    if document.type not in {"txt", "pdf", "docx"}:
+        raise ValueError("Uploaded document type is unsupported")
+
+    path = upload_path(tenant_id, document_id, document.type)
+    return await asyncio.to_thread(
+        pipeline.ingest_source,
+        path,
+        tenant_id=str(tenant_id),
+        source_type=document.type,
+        document_id=str(document_id),
+        source_name=document.source.replace("\\", "/").rsplit("/", 1)[-1],
+        title=document.title,
+        visibility=document.visibility,
+        max_bytes=MAX_UPLOAD_BYTES,
+    )
 
 
 async def get_document(session: AsyncSession, tenant_id: UUID, document_id: UUID) -> DocumentResponse:

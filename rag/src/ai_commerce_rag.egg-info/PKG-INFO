@@ -1,0 +1,14 @@
+Metadata-Version: 2.4
+Name: ai-commerce-rag
+Version: 0.1.0
+Requires-Python: >=3.10
+Requires-Dist: langchain-core<2,>=1.0
+Requires-Dist: langchain-community<1,>=0.4
+Requires-Dist: langchain-text-splitters<2,>=1.0
+Requires-Dist: langchain-huggingface<2,>=1.0
+Requires-Dist: langchain-chroma<2,>=1.0
+Requires-Dist: sentence-transformers<6,>=3.0
+Requires-Dist: chromadb<2,>=1.0
+Requires-Dist: beautifulsoup4<5,>=4.12
+Requires-Dist: pypdf<7,>=5.0
+Requires-Dist: docx2txt<1,>=0.8

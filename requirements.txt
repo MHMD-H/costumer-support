@@ -11,3 +11,14 @@ SQLAlchemy>=2.0,<3
 asyncpg>=0.29,<1
 uvicorn
 -r rag/requirements.txt
+-e ./rag
+aisuite==0.1.11
+anthropic
+docstring-parser
+markdown
+mistralai
+openai
+qrcode
+tavily-python>=0.7.12
+textstat
+vertexai

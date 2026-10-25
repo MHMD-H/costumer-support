@@ -4,7 +4,9 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from pathlib import Path
+import re
 from typing import Any, Protocol
+import unicodedata
 
 from langchain_core.documents import Document
 
@@ -52,7 +54,7 @@ class IngestionPipeline:
         )
 
     def ingest(self, loader: DocumentLoader, *, replace: bool = False) -> IngestionResult:
-        documents = self._load_documents(loader)
+        documents = self._clean_documents(self._load_documents(loader))
         self._validate_documents_not_empty(documents)
         identities = self._document_identities(documents)
         self._check_duplicate_identities(identities, replace=replace)
@@ -119,6 +121,18 @@ class IngestionPipeline:
     def _validate_documents_not_empty(documents: list[Document]) -> None:
         if not documents or not any(document.page_content.strip() for document in documents):
             raise ValueError("empty document: loaded content contains no non-whitespace text")
+
+    @staticmethod
+    def _clean_documents(documents: list[Document]) -> list[Document]:
+        cleaned = []
+        for document in documents:
+            content = unicodedata.normalize("NFC", document.page_content)
+            content = content.replace("\r\n", "\n").replace("\r", "\n").replace("\u00a0", " ")
+            content = "".join(char for char in content if char in "\n\t" or ord(char) >= 32)
+            content = "\n".join(line.rstrip() for line in content.split("\n"))
+            content = re.sub(r"\n{3,}", "\n\n", content).strip()
+            cleaned.append(Document(page_content=content, metadata=dict(document.metadata)))
+        return cleaned
 
     def _split_documents(self, documents: list[Document]) -> list[Document]:
         try:
