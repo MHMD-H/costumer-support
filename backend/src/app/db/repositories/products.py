@@ -19,6 +19,20 @@ async def get_product_by_id(session: AsyncSession, tenant_id: UUID, product_id: 
     return result.scalar_one_or_none()
 
 
+async def get_public_product_by_external_id(
+    session: AsyncSession, tenant_id: UUID, external_product_id: str
+) -> Product | None:
+    """Return only a public-visible product owned by the resolved tenant."""
+    result = await session.execute(
+        select(Product).where(
+            Product.tenant_id == tenant_id,
+            Product.external_product_id == external_product_id,
+            Product.public_visible.is_(True),
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def list_products(
     session: AsyncSession,
     tenant_id: UUID,
