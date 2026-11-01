@@ -96,13 +96,49 @@ async def get_current_dashboard_user(
         raise unauthorized("Bearer token is invalid.") from None
 
     user = await user_repository.get_user_by_auth_user_id(session, auth_user_id)
+    if user is None or not user.is_active or user.auth_user_id != auth_user_id:
+        raise unauthorized()
+
+    try:
+        role = Role(user.role)
+    except (TypeError, ValueError):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail={"error": "forbidden", "message": "Dashboard role is invalid."},
+        ) from None
+
+    return AuthUserResponse(
+        id=user.id,
+        tenant_id=user.tenant_id,
+        name=user.name,
+        email=user.email,
+        role=role,
+    )
+
+
+async def get_or_create_current_application_user(
+    verified_token: Annotated[VerifiedSupabaseToken, Depends(validate_jwt)],
+    session: DbSessionDep,
+) -> AuthUserResponse:
+    """Bootstrap a verified merchant without weakening normal route authorization."""
+    try:
+        auth_user_id = UUID(verified_token.subject)
+    except ValueError:
+        raise unauthorized("Bearer token is invalid.") from None
+
+    user = await user_repository.get_user_by_auth_user_id(session, auth_user_id)
     if user is None:
         email = verified_token.email
-        if not isinstance(email, str) or not re.fullmatch(r"[^@\s]+@[^@\s]+\.[^@\s]+", email):
+        if not isinstance(email, str) or not re.fullmatch(
+            r"[^@\s]+@[^@\s]+\.[^@\s]+", email
+        ):
             raise unauthorized("Verified user email is required.")
         user = await user_repository.create_unlinked_store_owner(
-            session, auth_user_id=auth_user_id, email=email
+            session,
+            auth_user_id=auth_user_id,
+            email=email.strip().lower(),
         )
+
     if user is None or not user.is_active or user.auth_user_id != auth_user_id:
         raise unauthorized()
 
@@ -126,6 +162,9 @@ async def get_current_dashboard_user(
 JwtDep = Annotated[VerifiedSupabaseToken, Depends(validate_jwt)]
 CurrentUser = AuthUserResponse
 CurrentUserDep = Annotated[CurrentUser, Depends(get_current_dashboard_user)]
+CurrentApplicationUserDep = Annotated[
+    CurrentUser, Depends(get_or_create_current_application_user)
+]
 # Keep the existing route dependency name while exposing the canonical trusted
 # request-context name for new consumers.
 CurrentDashboardUserDep = CurrentUserDep

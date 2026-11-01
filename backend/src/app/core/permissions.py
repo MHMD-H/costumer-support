@@ -1,18 +1,23 @@
-"""Tenant-scoped dashboard authorization and public-widget placeholder hooks."""
+"""Tenant-scoped dashboard authorization and public-widget access checks."""
 
+from collections import OrderedDict, deque
 from collections.abc import Callable
 from dataclasses import dataclass
+from os import getenv
+from threading import Lock
+from time import monotonic
 from typing import Annotated
+from urllib.parse import urlsplit
 
-from fastapi import Depends, Header, HTTPException, status
+from fastapi import Depends, Header, HTTPException, Request, status
 
-from app.core.auth import CurrentDashboardUserDep
+from app.core.auth import CurrentApplicationUserDep, CurrentDashboardUserDep
 from app.core.rbac import Permission, Role, ROLE_GRANTABLE_PERMISSIONS, ROLE_PERMISSIONS
 from app.core.tenant_context import (
     DashboardTenantDep,
+    PublicWidgetTenantBodyDep,
     PublicWidgetTenantQueryDep,
     TenantContext,
-    resolve_public_widget_tenant_from_body,
 )
 from app.db.postgres import DbSessionDep
 from app.db.repositories import permissions as permission_repository
@@ -23,6 +28,59 @@ from app.features.schemas import PublicChatRequest
 class PublicWidgetChatContext:
     request: PublicChatRequest
     tenant: TenantContext
+
+
+class PublicWidgetRateLimiter:
+    """Bounded sliding-window limiter for the current single-process deployment."""
+
+    def __init__(self, *, request_limit: int, window_seconds: float, max_clients: int = 10_000) -> None:
+        if request_limit < 1 or window_seconds <= 0 or max_clients < 1:
+            raise ValueError("Public widget rate-limit settings must be positive")
+        self.request_limit = request_limit
+        self.window_seconds = window_seconds
+        self.max_clients = max_clients
+        self._requests: OrderedDict[str, deque[float]] = OrderedDict()
+        self._lock = Lock()
+
+    def check(self, client_key: str, *, now: float | None = None) -> None:
+        current = monotonic() if now is None else now
+        cutoff = current - self.window_seconds
+        with self._lock:
+            timestamps = self._requests.pop(client_key, deque())
+            while timestamps and timestamps[0] <= cutoff:
+                timestamps.popleft()
+            if len(timestamps) >= self.request_limit:
+                self._requests[client_key] = timestamps
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail={
+                        "error": "rate_limited",
+                        "message": "Please wait before sending another request.",
+                    },
+                )
+            timestamps.append(current)
+            self._requests[client_key] = timestamps
+            while len(self._requests) > self.max_clients:
+                self._requests.popitem(last=False)
+
+    def reset(self) -> None:
+        with self._lock:
+            self._requests.clear()
+
+
+def _positive_number(name: str, default: str, cast: Callable[[str], int | float]) -> int | float:
+    value = cast(getenv(name, default))
+    if value <= 0:
+        raise RuntimeError(f"{name} must be positive")
+    return value
+
+
+PUBLIC_WIDGET_RATE_LIMITER = PublicWidgetRateLimiter(
+    request_limit=int(_positive_number("PUBLIC_WIDGET_RATE_LIMIT_REQUESTS", "60", int)),
+    window_seconds=float(
+        _positive_number("PUBLIC_WIDGET_RATE_LIMIT_WINDOW_SECONDS", "60", float)
+    ),
+)
 
 
 def forbidden(message: str = "Insufficient permission.") -> HTTPException:
@@ -105,41 +163,71 @@ def require_conversation_access(effective: EffectivePermissionsDep) -> None:
         raise forbidden()
 
 
-def require_shopify_connect(current_user: CurrentDashboardUserDep) -> None:
+def require_shopify_connect(current_user: CurrentApplicationUserDep) -> None:
     """The sole permission guard that allows an authenticated unlinked merchant."""
     role = checked_role(current_user.role)
     if role is not Role.STORE_OWNER or Permission.CONNECT_SHOPIFY_STORE not in ROLE_PERMISSIONS[role]:
         raise forbidden()
 
 
-def validate_allowed_origin(
-    origin: Annotated[str | None, Header(alias="Origin")] = None,
-) -> None:
-    """Placeholder allowed-origin validation hook for widget calls."""
-    return None
+def normalized_https_origin(value: str) -> str | None:
+    try:
+        parsed = urlsplit(value.strip())
+        port = parsed.port
+    except ValueError:
+        return None
+    if (
+        parsed.scheme.lower() != "https"
+        or not parsed.hostname
+        or parsed.username is not None
+        or parsed.password is not None
+        or parsed.query
+        or parsed.fragment
+        or parsed.path not in {"", "/"}
+    ):
+        return None
+    hostname = parsed.hostname.lower()
+    return f"https://{hostname}" + (f":{port}" if port not in {None, 443} else "")
 
 
-def rate_limit_hook() -> None:
-    """Placeholder rate limiting hook."""
-    return None
+def validate_allowed_origin(origin: str | None, tenant: TenantContext) -> None:
+    normalized_origin = normalized_https_origin(origin) if origin else None
+    allowed = {
+        normalized
+        for value in tenant.widget_allowed_origins
+        if (normalized := normalized_https_origin(value)) is not None
+    }
+    if normalized_origin is None or normalized_origin not in allowed:
+        raise forbidden("Storefront origin is not allowed.")
+
+
+def rate_limit_hook(request: Request) -> None:
+    client_host = request.client.host if request.client is not None else "unknown"
+    PUBLIC_WIDGET_RATE_LIMITER.check(client_host)
+
+
+PublicWidgetRateLimitDep = Annotated[None, Depends(rate_limit_hook)]
 
 
 def validate_public_widget_query(
+    rate_limit_ok: PublicWidgetRateLimitDep,
     tenant: PublicWidgetTenantQueryDep,
-    origin_ok: Annotated[None, Depends(validate_allowed_origin)] = None,
-    rate_limit_ok: Annotated[None, Depends(rate_limit_hook)] = None,
+    origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> TenantContext:
+    validate_allowed_origin(origin, tenant)
     return tenant
 
 
 def validate_public_widget_body(
     body: PublicChatRequest,
-    origin_ok: Annotated[None, Depends(validate_allowed_origin)] = None,
-    rate_limit_ok: Annotated[None, Depends(rate_limit_hook)] = None,
+    rate_limit_ok: PublicWidgetRateLimitDep,
+    tenant: PublicWidgetTenantBodyDep,
+    origin: Annotated[str | None, Header(alias="Origin")] = None,
 ) -> PublicWidgetChatContext:
+    validate_allowed_origin(origin, tenant)
     return PublicWidgetChatContext(
         request=body,
-        tenant=resolve_public_widget_tenant_from_body(body),
+        tenant=tenant,
     )
 
 
