@@ -11,10 +11,18 @@ from app.db.models import ShopifyConnection, ShopifyOAuthState, Tenant, User
 
 
 async def create_oauth_state(
-    session: AsyncSession, *, user_id: UUID, state_hash: str, expires_at: datetime
+    session: AsyncSession,
+    *,
+    user_id: UUID,
+    state_hash: str,
+    shop_domain: str,
+    expires_at: datetime,
 ) -> ShopifyOAuthState:
     oauth_state = ShopifyOAuthState(
-        user_id=user_id, state_hash=state_hash, expires_at=expires_at
+        user_id=user_id,
+        state_hash=state_hash,
+        shop_domain=shop_domain,
+        expires_at=expires_at,
     )
     session.add(oauth_state)
     await session.commit()
@@ -23,12 +31,17 @@ async def create_oauth_state(
 
 
 async def consume_oauth_state(
-    session: AsyncSession, *, state_hash: str, consumed_at: datetime
+    session: AsyncSession,
+    *,
+    state_hash: str,
+    shop_domain: str,
+    consumed_at: datetime,
 ) -> ShopifyOAuthState | None:
     result = await session.execute(
         update(ShopifyOAuthState)
         .where(
             ShopifyOAuthState.state_hash == state_hash,
+            ShopifyOAuthState.shop_domain == shop_domain,
             ShopifyOAuthState.consumed_at.is_(None),
             ShopifyOAuthState.expires_at > consumed_at,
         )
@@ -65,6 +78,18 @@ async def get_connection_by_tenant_id(
     return result.scalar_one_or_none()
 
 
+async def get_active_connection_by_tenant_id(
+    session: AsyncSession, tenant_id: UUID
+) -> ShopifyConnection | None:
+    result = await session.execute(
+        select(ShopifyConnection).where(
+            ShopifyConnection.tenant_id == tenant_id,
+            ShopifyConnection.status == "active",
+        )
+    )
+    return result.scalar_one_or_none()
+
+
 async def create_tenant(
     session: AsyncSession, *, name: str, shop_id: str, shop_domain: str
 ) -> Tenant:
@@ -80,13 +105,11 @@ async def create_connection(
     tenant_id: UUID,
     shop_id: str,
     shop_domain: str,
-    access_token_encrypted: str,
 ) -> ShopifyConnection:
     connection = ShopifyConnection(
         tenant_id=tenant_id,
         shop_id=shop_id,
         shop_domain=shop_domain,
-        access_token_encrypted=access_token_encrypted,
     )
     session.add(connection)
     await session.flush()

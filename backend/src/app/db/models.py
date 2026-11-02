@@ -111,6 +111,7 @@ class ShopifyOAuthState(Base):
     id: Mapped[UUID] = uuid_pk()
     user_id: Mapped[UUID] = mapped_column(PG_UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
     state_hash: Mapped[str] = mapped_column(Text, nullable=False)
+    shop_domain: Mapped[str] = mapped_column(Text, nullable=False)
     expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     consumed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     created_at: Mapped[datetime] = timestamp_column()
@@ -132,7 +133,6 @@ class ShopifyConnection(Base):
     shop_id: Mapped[str] = mapped_column(Text, nullable=False)
     shop_domain: Mapped[str] = mapped_column(Text, nullable=False)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default=text("'active'"))
-    access_token_encrypted: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = timestamp_column()
     updated_at: Mapped[datetime] = timestamp_column()
 

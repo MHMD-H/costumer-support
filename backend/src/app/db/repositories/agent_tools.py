@@ -22,7 +22,7 @@ async def list_agent_tools(
         select(AgentTool)
         .options(selectinload(AgentTool.tenant))
         .where(
-            or_(AgentTool.tenant_id == tenant_id, AgentTool.tenant_id.is_(None)),
+            or_(AgentTool.tenant_id == tenant_id, AgentTool.tenant_id.is_(None)), 
             AgentTool.read_only.is_(True),
         )
         .order_by(AgentTool.created_at.desc(), AgentTool.id.desc())

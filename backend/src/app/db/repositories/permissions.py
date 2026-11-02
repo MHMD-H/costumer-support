@@ -44,6 +44,7 @@ async def list_user_permission_values(
         select(Permission.permission, Permission.tenant_id)
         .join(User, User.id == Permission.user_id)
         .where(
+            Permission.tenant_id == tenant_id,
             Permission.user_id == user_id,
             User.tenant_id == tenant_id,
         )

@@ -28,6 +28,27 @@ async def get_tenant_by_widget_public_key(session: AsyncSession, widget_public_k
     return result.scalar_one_or_none()
 
 
+async def get_enabled_public_widget_tenant(
+    session: AsyncSession,
+    *,
+    shop_id: str | None,
+    shop_domain: str | None,
+    widget_public_key: str,
+) -> Tenant | None:
+    """Resolve one enabled widget from the complete supplied store identity."""
+    criteria = [
+        Tenant.widget_public_key == widget_public_key,
+        Tenant.widget_enabled.is_(True),
+    ]
+    if shop_id is not None:
+        criteria.append(Tenant.shop_id == shop_id)
+    if shop_domain is not None:
+        criteria.append(Tenant.shop_domain == shop_domain)
+
+    result = await session.execute(select(Tenant).where(*criteria))
+    return result.scalar_one_or_none()
+
+
 async def update_tenant(session: AsyncSession, tenant: Tenant, updates: dict) -> Tenant:
     for field, value in updates.items():
         setattr(tenant, field, value)
