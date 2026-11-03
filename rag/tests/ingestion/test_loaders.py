@@ -13,6 +13,7 @@ from rag.loaders import (
     TextFileLoader, WebPageLoader, create_loader, detect_source_type,
 )
 from rag.loaders.base import LoaderContext, enrich_documents
+from rag.loaders.files import MAX_EXTRACTED_TEXT_CHARACTERS
 
 
 def test_pdf_loader_adds_page_and_persistence_metadata(tmp_path) -> None:
@@ -133,6 +134,23 @@ def test_oversized_file_fails_before_ingestion(tmp_path) -> None:
         handle.truncate(100 * 1024 * 1024 + 1)
 
     with pytest.raises(ValueError, match="100 MB limit"):
+        TextFileLoader(path, tenant_id="tenant-1").load()
+
+
+def test_extracted_text_amplification_is_bounded(tmp_path, monkeypatch) -> None:
+    path = tmp_path / "small.txt"
+    path.write_text("small", encoding="utf-8")
+
+    class AmplifyingLoader:
+        def __init__(self, _path):
+            pass
+
+        def load(self):
+            return [Document(page_content="x" * (MAX_EXTRACTED_TEXT_CHARACTERS + 1))]
+
+    monkeypatch.setattr(TextFileLoader, "_loader_type", lambda _self: AmplifyingLoader)
+
+    with pytest.raises(ValueError, match="Extracted text is too large"):
         TextFileLoader(path, tenant_id="tenant-1").load()
 
 

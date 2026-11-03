@@ -864,6 +864,13 @@ a {
   flex-direction: column;
 }
 
+@media (min-width: 64.01rem) {
+  .onboarding-shell > .contour-background {
+    -webkit-mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, transparent 60%, #000 100%);
+    mask-image: radial-gradient(ellipse 60% 50% at 50% 45%, transparent 60%, #000 100%);
+  }
+}
+
 .onboarding-shell__header {
   position: relative;
   z-index: 1;
@@ -1139,6 +1146,520 @@ a {
   color: #687384;
   cursor: default;
   text-decoration: none;
+}
+
+.onboarding-stage {
+  color: #101820;
+  text-align: center;
+}
+
+.onboarding-stage__intro {
+  max-width: 54rem;
+  margin-inline: auto;
+}
+
+.onboarding-stage__eyebrow {
+  margin: 0 0 0.7rem;
+  color: var(--color-brand);
+  font-size: 0.8125rem;
+  font-weight: 700;
+  letter-spacing: 0.2em;
+  line-height: 1.5;
+  text-transform: uppercase;
+}
+
+.onboarding-stage__intro h1 {
+  margin: 0;
+  font-size: clamp(2rem, 3.4vw, 3rem);
+  font-weight: 700;
+  letter-spacing: -0.055em;
+  line-height: 1.15;
+  text-wrap: balance;
+}
+
+.onboarding-stage__intro > p:last-child {
+  margin: 1.1rem auto 0;
+  color: #607083;
+  font-size: clamp(1rem, 1.65vw, 1.5rem);
+  line-height: 1.45;
+  text-wrap: balance;
+}
+
+.onboarding-stage__card {
+  border: 1px solid #dfe5e8;
+  border-radius: 1rem;
+  background: rgb(255 255 255 / 97%);
+  box-shadow: 0 15px 38px rgb(16 24 32 / 6%);
+}
+
+.shopify-connect__card {
+  width: min(100%, 36.5rem);
+  margin: 2.7rem auto 0;
+  padding: 2.2rem 2.75rem 2rem;
+}
+
+.shopify-connect__bag {
+  display: block;
+  width: 6.25rem;
+  height: 6.25rem;
+  margin-inline: auto;
+}
+
+.shopify-connect__card h2 {
+  margin: 0.8rem 0 0;
+  font-size: clamp(1.3rem, 2vw, 1.55rem);
+  font-weight: 700;
+  letter-spacing: -0.035em;
+  line-height: 1.3;
+}
+
+.shopify-connect__assurances {
+  display: grid;
+  gap: 1.15rem;
+  width: max-content;
+  max-width: 100%;
+  margin: 1.8rem auto 2rem;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.shopify-connect__assurances li {
+  display: flex;
+  align-items: center;
+  gap: 0.9rem;
+  font-size: clamp(1rem, 1.6vw, 1.25rem);
+  line-height: 1.4;
+}
+
+.shopify-connect__assurances svg {
+  width: 2rem;
+  height: 2rem;
+  flex: none;
+}
+
+.shopify-connect__action {
+  width: 100%;
+  min-height: 3.5rem;
+  font-size: 1.125rem;
+}
+
+.shopify-connect__note {
+  margin: 0.85rem 0 0;
+  color: #607083;
+  font-size: var(--text-sm);
+}
+
+.shopify-domain__card {
+  width: min(100%, 48.5rem);
+  margin: 2.9rem auto 0;
+  padding: 2.6rem 2.7rem 2.5rem;
+  text-align: left;
+}
+
+.shopify-domain__label {
+  display: block;
+  margin-bottom: 1rem;
+  font-size: 1.375rem;
+  font-weight: 650;
+  letter-spacing: -0.025em;
+}
+
+.shopify-domain__split {
+  display: flex;
+  min-height: 4.5rem;
+  overflow: hidden;
+  border: 1px solid #bbc7ce;
+  border-radius: 0.6rem;
+  background: #fff;
+}
+
+.shopify-domain__split:focus-within {
+  border-color: var(--color-brand);
+  outline: 3px solid var(--color-focus);
+  outline-offset: 2px;
+}
+
+.shopify-domain__split--invalid {
+  border-color: #b42318;
+}
+
+.shopify-domain__prefix,
+.shopify-domain__suffix {
+  display: flex;
+  flex: none;
+  align-items: center;
+  padding-inline: 1.5rem;
+  color: #24313d;
+  background: #f5f6f7;
+  font-size: 1.125rem;
+  white-space: nowrap;
+}
+
+.shopify-domain__prefix {
+  border-right: 1px solid #dfe5e8;
+}
+
+.shopify-domain__suffix {
+  border-left: 1px solid #dfe5e8;
+}
+
+.shopify-domain__split input {
+  width: 100%;
+  min-width: 0;
+  flex: 1;
+  border: 0;
+  padding-inline: 1.5rem;
+  color: #101820;
+  background: transparent;
+  font-size: 1.125rem;
+  outline: 0;
+}
+
+.shopify-domain__split input::placeholder {
+  color: #9aa6b5;
+}
+
+.shopify-domain__help {
+  margin: 0.8rem 0 0;
+  color: #657387;
+  font-size: var(--text-sm);
+}
+
+.shopify-domain__error {
+  margin: 0.8rem 0 0;
+  color: #a02d23;
+  font-size: var(--text-sm);
+  line-height: 1.45;
+}
+
+.shopify-domain__error a {
+  color: #006b50;
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+
+.shopify-domain__submit {
+  width: 100%;
+  min-height: 3.6rem;
+  margin-top: 2.35rem;
+  font-size: 1.125rem;
+}
+
+.shopify-domain__address-help {
+  margin-top: 2rem;
+  color: var(--color-brand);
+  text-align: center;
+}
+
+.shopify-domain__address-help summary {
+  display: inline-block;
+  cursor: pointer;
+  font-size: 1.05rem;
+  text-decoration: underline;
+  text-underline-offset: 0.2em;
+}
+
+.shopify-domain__address-help p {
+  max-width: 32rem;
+  margin: 0.9rem auto 0;
+  color: #607083;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.shopify-connecting__card {
+  width: min(100%, 43rem);
+  margin: 2.6rem auto 0;
+  padding: 2.7rem 3.4rem 2.1rem;
+}
+
+.shopify-connecting__visual {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 1.4rem;
+  margin-bottom: 1.75rem;
+}
+
+.shopify-connecting__platform,
+.shopify-connecting__visual .shopify-connect__bag {
+  width: 5.75rem;
+  height: 5.75rem;
+  flex: none;
+  margin: 0;
+}
+
+.shopify-connecting__bridge {
+  position: relative;
+  display: flex;
+  width: 9.5rem;
+  align-items: center;
+  justify-content: space-evenly;
+  color: var(--color-brand);
+}
+
+.shopify-connecting__bridge::before {
+  position: absolute;
+  right: 0;
+  left: 0;
+  height: 1px;
+  background: currentColor;
+  content: "";
+}
+
+.shopify-connecting__bridge i {
+  position: relative;
+  width: 0.4rem;
+  height: 0.4rem;
+  border-radius: 50%;
+  background: currentColor;
+}
+
+.shopify-connecting__card h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 2vw, 1.65rem);
+  letter-spacing: -0.035em;
+}
+
+.shopify-connecting__summary {
+  max-width: 29rem;
+  min-height: 3rem;
+  margin: 0.85rem auto 0;
+  color: #607083;
+  line-height: 1.5;
+}
+
+.shopify-connecting__statuses {
+  display: grid;
+  gap: 1.3rem;
+  width: max-content;
+  max-width: 100%;
+  margin: 2rem auto 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.shopify-connecting__statuses li {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  color: #273442;
+  font-size: 1.125rem;
+}
+
+.shopify-connecting__check,
+.shopify-connecting__status-mark {
+  display: block;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.shopify-connecting__status-mark {
+  border: 2px solid #cad7d6;
+  border-radius: 50%;
+}
+
+.shopify-connecting__status-mark--active {
+  border-color: #a5d9c6;
+  border-top-color: var(--color-brand);
+  animation: shopify-status-spin 1.4s linear infinite;
+}
+
+@keyframes shopify-status-spin {
+  to { transform: rotate(360deg); }
+}
+
+.shopify-connecting__note {
+  margin: 2rem 0 0;
+  color: #687384;
+  font-size: var(--text-sm);
+}
+
+.shopify-connecting__action {
+  display: inline-flex;
+  margin-top: 1.8rem;
+}
+
+.shopify-connecting__cancel {
+  display: block;
+  margin: 2rem auto 0;
+  border: 0;
+  padding: 0.25rem 0;
+  color: var(--color-brand);
+  background: transparent;
+  font: inherit;
+  font-weight: 600;
+  cursor: pointer;
+  text-decoration: underline;
+  text-underline-offset: 0.25em;
+}
+
+.shopify-ready__card {
+  width: min(100%, 34.5rem);
+  margin: 2.5rem auto 0;
+  padding: 1.7rem 3.1rem 1.9rem;
+}
+
+.shopify-ready .onboarding-stage__intro h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2.75rem, 3.6vw, 3.5rem);
+}
+
+.shopify-ready__large-check {
+  display: block;
+  width: 6.25rem;
+  height: 6.25rem;
+  margin: 0 auto 1.1rem;
+}
+
+.shopify-ready__card h2 {
+  margin: 0;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(1.5rem, 2.2vw, 1.9rem);
+  letter-spacing: -0.04em;
+}
+
+.shopify-ready__statuses {
+  margin: 1.4rem 0 0;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+
+.shopify-ready__statuses li {
+  display: flex;
+  min-height: 3.1rem;
+  align-items: center;
+  gap: 1.15rem;
+  border-bottom: 1px solid #e6eaeb;
+  font-size: 1rem;
+}
+
+.shopify-ready__statuses li:last-child {
+  border-bottom: 0;
+}
+
+.shopify-ready__check {
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+}
+
+.shopify-ready__sync-note {
+  margin: 1.3rem 0 1.6rem;
+  color: #607083;
+  font-size: var(--text-sm);
+  line-height: 1.5;
+}
+
+.shopify-ready__open {
+  width: 100%;
+  min-height: 3.2rem;
+  font-size: 1rem;
+}
+
+.shopify-ready__settings-note {
+  margin: 1.25rem 0 0;
+  color: var(--color-brand);
+  font-size: var(--text-sm);
+}
+
+.shopify-ready__guard {
+  display: grid;
+  min-height: 100vh;
+  min-height: 100svh;
+  place-items: center;
+  padding: 2rem;
+}
+
+.shopify-ready__guard-content {
+  position: relative;
+  z-index: 1;
+  max-width: 35rem;
+  text-align: center;
+}
+
+.shopify-ready__guard-content h1 {
+  margin: 0;
+  color: var(--color-ink);
+  font-size: clamp(1.7rem, 4vw, 2.5rem);
+  letter-spacing: -0.04em;
+}
+
+.shopify-ready__guard-content p {
+  margin: 0.9rem 0 1.5rem;
+  color: var(--color-muted);
+}
+
+@media (max-width: 40rem) {
+  .shopify-ready__card { margin-top: 2rem; padding: 1.8rem 1.3rem; }
+  .shopify-ready__large-check { width: 5.5rem; height: 5.5rem; }
+  .shopify-ready__statuses li { font-size: 0.95rem; }
+  .shopify-connecting__card { margin-top: 2rem; padding: 2rem 1.2rem; }
+  .shopify-connecting__visual { gap: 0.5rem; }
+  .shopify-connecting__platform,
+  .shopify-connecting__visual .shopify-connect__bag { width: 4.5rem; height: 4.5rem; }
+  .shopify-connecting__bridge { width: 4rem; }
+  .shopify-connecting__statuses li { font-size: 1rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .shopify-connecting__status-mark--active { animation: none; }
+}
+
+@media (max-width: 40rem) {
+  .onboarding-stage__desktop-break {
+    display: none;
+  }
+
+  .shopify-connect__card,
+  .shopify-domain__card {
+    margin-top: 2rem;
+    padding: 1.5rem 1.1rem;
+  }
+
+  .shopify-connect__bag {
+    width: 5.5rem;
+    height: 5.5rem;
+  }
+
+  .shopify-connect__assurances {
+    gap: 0.9rem;
+  }
+
+  .shopify-connect__assurances svg {
+    width: 1.5rem;
+    height: 1.5rem;
+  }
+
+  .shopify-domain__label {
+    margin-bottom: 0.7rem;
+    font-size: 1.125rem;
+  }
+
+  .shopify-domain__split {
+    min-height: 3.5rem;
+  }
+
+  .shopify-domain__prefix,
+  .shopify-domain__suffix {
+    padding-inline: 0.5rem;
+    font-size: 0.78rem;
+  }
+
+  .shopify-domain__split input {
+    padding-inline: 0.5rem;
+    font-size: 0.9rem;
+  }
+
+  .shopify-connect__action,
+  .shopify-domain__submit {
+    min-height: 3rem;
+    font-size: var(--text-sm);
+  }
 }
 
 @media (max-width: 40rem) {

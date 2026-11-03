@@ -18,6 +18,7 @@ vi.mock("@supabase/supabase-js", () => ({
 
 import {
   getAccessToken,
+  getVerifiedUserEmail,
   requestPasswordReset,
   signInWithPassword,
   signOut,
@@ -91,6 +92,17 @@ describe("Supabase dashboard authentication", () => {
       redirectTo: "http://localhost:3000/reset-password",
     });
     expect(auth.signOut).toHaveBeenCalledOnce();
+  });
+
+  it("accepts onboarding continuation only from a server-verified confirmed user", async () => {
+    auth.getUser
+      .mockResolvedValueOnce({ data: { user: { email: "owner@example.com", email_confirmed_at: "2026-10-21" } }, error: null })
+      .mockResolvedValueOnce({ data: { user: { email: "owner@example.com", email_confirmed_at: null } }, error: null })
+      .mockResolvedValueOnce({ data: { user: null }, error: new Error("Invalid Refresh Token") });
+
+    await expect(getVerifiedUserEmail()).resolves.toBe("owner@example.com");
+    await expect(getVerifiedUserEmail()).resolves.toBeNull();
+    await expect(getVerifiedUserEmail()).resolves.toBeNull();
   });
 
   it("verifies a signup code and checks confirmed Supabase session state", async () => {

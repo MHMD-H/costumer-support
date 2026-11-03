@@ -1,0 +1,27 @@
+
+> dev
+> next dev --hostname 127.0.0.1 --port 3000 --webpack
+
+▲ Next.js 16.3.5 (webpack)
+- Local:         http://127.0.0.1:3000
+- Network:       http://127.0.0.1:3000
+- Environments: .env.local
+✓ Ready in 1690ms
+⚠ Warning: Next.js inferred your workspace root, but it may not be correct.
+ We detected multiple lockfiles and selected the directory of C:\Users\moham_f78sqay\Desktop\RAG\package-lock.json as the root directory.
+ To silence this warning, set `outputFileTracingRoot` in your Next.js config, or consider removing one of the lockfiles if it's not needed.
+   See https://nextjs.org/docs/app/api-reference/config/next-config-js/output#caveats for more information.
+ Detected additional lockfiles: 
+   * C:\Users\moham_f78sqay\Desktop\RAG\frontend\package-lock.json
+
+✓ Running next.config took 50ms
+
+ GET / 200 in 7.9s (next.js: 7.3s, application-code: 614ms)
+ GET / 200 in 234ms (next.js: 24ms, application-code: 210ms)
+ GET /login 200 in 1239ms (next.js: 1093ms, application-code: 146ms)
+ GET /register 200 in 422ms (next.js: 386ms, application-code: 36ms)
+  Reload env: .env.local
+ GET /register 200 in 767ms (next.js: 613ms, application-code: 154ms)
+[browser] GoTrueClient@sb-heuzmtpvttknwxwukttf-auth-token:1 (2.102.0) 2026-10-18T15:41:38.029Z Multiple GoTrueClient instances detected in the same browser context. It is not an error, but this should be avoided as it may produce undefined behavior when used concurrently under the same storage key. (src\lib\auth.ts:17:24)
+ GET /onboarding/verify-email 200 in 1542ms (next.js: 1162ms, application-code: 380ms)
+⚠ Fast Refresh had to perform a full reload. Read more: https://nextjs.org/docs/messages/fast-refresh-reload

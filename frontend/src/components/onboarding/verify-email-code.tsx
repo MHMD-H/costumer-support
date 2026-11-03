@@ -2,7 +2,9 @@
 
 import { type ClipboardEvent, type FormEvent, type KeyboardEvent, useEffect, useRef, useState } from "react";
 
-import { resendSignUpCode, verifySignUpCode } from "../../lib/auth";
+import { getVerifiedUserEmail, resendSignUpCode, verifySignUpCode } from "../../lib/auth";
+import { destinationForConnectionStatus } from "../../lib/auth-routing";
+import { readShopifyConnectionStatus } from "../../lib/shopify-connection-status";
 
 const CODE_LENGTH = 6;
 const RESEND_COOLDOWN_SECONDS = 30;
@@ -26,11 +28,28 @@ export function VerifyEmailCode() {
 
   useEffect(() => {
     const pendingEmail = sessionStorage.getItem("pendingVerificationEmail");
-    if (!pendingEmail) {
-      window.location.replace("/login?verification=expired");
+    if (pendingEmail) {
+      setEmail(pendingEmail);
       return;
     }
-    setEmail(pendingEmail);
+
+    let active = true;
+    void getVerifiedUserEmail().then(async (verifiedEmail) => {
+      if (!active) return;
+      if (!verifiedEmail) {
+        window.location.replace("/login?verification=expired");
+        return;
+      }
+
+      const connectionStatus = await readShopifyConnectionStatus();
+      if (!active) return;
+      const destination = destinationForConnectionStatus(connectionStatus);
+      window.location.replace(destination ?? "/login?verification=expired");
+    }).catch(() => {
+      if (active) window.location.replace("/login?verification=expired");
+    });
+
+    return () => { active = false; };
   }, []);
 
   useEffect(() => {
@@ -82,7 +101,13 @@ export function VerifyEmailCode() {
     try {
       await verifySignUpCode(email, token);
       sessionStorage.removeItem("pendingVerificationEmail");
-      window.location.assign("/onboarding/connect-shopify");
+      const connectionStatus = await readShopifyConnectionStatus();
+      const destination = destinationForConnectionStatus(connectionStatus);
+      if (destination) {
+        window.location.assign(destination);
+      } else {
+        setError("Your email is verified, but we couldn’t confirm your workspace. Please try again.");
+      }
     } catch (verificationError) {
       const message = verificationError instanceof Error ? verificationError.message.toLowerCase() : "";
       if (message.includes("session") || message.includes("refresh token")) {

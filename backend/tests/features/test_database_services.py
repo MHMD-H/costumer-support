@@ -156,27 +156,3 @@ def test_document_patch_maps_metadata_field(monkeypatch) -> None:
     assert response.title == "New"
     assert captured_updates["metadata_"] == {"source": "manual"}
     assert "metadata" not in captured_updates
-
-
-def test_document_replacement_builds_chunks() -> None:
-    now = datetime.now(timezone.utc)
-    document = Document(
-        id=DOCUMENT_ID,
-        tenant_id=TENANT_ID,
-        uploaded_by_user_id=UUID("22222222-2222-2222-2222-222222222222"),
-        title="Policy",
-        type="txt",
-        source="policy.txt",
-        visibility="public",
-        status="processing",
-        metadata_={},
-        created_at=now,
-        updated_at=now,
-    )
-
-    chunks = document_service.build_replacement_chunks(document, "hello")
-
-    assert len(chunks) == 1
-    assert chunks[0]["chunk_index"] == 0
-    assert chunks[0]["content"] == "hello"
-    assert chunks[0]["metadata"]["tenant_id"] == str(TENANT_ID)

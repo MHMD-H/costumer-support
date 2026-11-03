@@ -14,7 +14,13 @@ function getSupabaseClient(): SupabaseClient {
     throw new Error("Supabase browser authentication is not configured.");
   }
 
-  client = createClient(url, publishableKey);
+  client = createClient(url, publishableKey, {
+    auth: {
+      autoRefreshToken: true,
+      detectSessionInUrl: true,
+      persistSession: true,
+    },
+  });
   return client;
 }
 
@@ -75,6 +81,16 @@ export async function getAccessToken(): Promise<string | null> {
   } = await getSupabaseClient().auth.getSession();
 
   return session?.access_token ?? null;
+}
+
+export async function getVerifiedUserEmail(): Promise<string | null> {
+  const { data, error } = await getSupabaseClient().auth.getUser();
+
+  if (error || !data.user?.email || !data.user.email_confirmed_at) {
+    return null;
+  }
+
+  return data.user.email;
 }
 
 export async function signOut(): Promise<void> {

@@ -1,6 +1,5 @@
 """Privilege mutation checks on the existing users and permissions tables."""
 
-import asyncio
 from datetime import datetime, timezone
 from uuid import uuid4
 
@@ -12,6 +11,15 @@ from app.db.models import Permission, User
 from app.features import permissions as permission_service
 from app.features.schemas import AuthUserResponse, PermissionUpdateRequest, UserUpdateRequest
 from app.features.users import service as user_service
+
+
+def resolve_immediate(coroutine):
+    """Drive mocked async authorization calls that complete without yielding."""
+    try:
+        coroutine.send(None)
+    except StopIteration as result:
+        return result.value
+    raise AssertionError("Expected mocked coroutine to complete immediately")
 
 
 def actor(role: Role, tenant_id, user_id=None) -> AuthUserResponse:
@@ -78,12 +86,12 @@ def test_permission_mutation_respects_actor_target_and_tenant(
         acting_user=current,
     )
     if allowed:
-        response = asyncio.run(operation)
+        response = resolve_immediate(operation)
         assert response.permission == new_value
         assert writes == [{"permission": new_value.value}]
     else:
         with pytest.raises(HTTPException) as error:
-            asyncio.run(operation)
+            resolve_immediate(operation)
         assert error.value.status_code == 403
         assert writes == []
 
@@ -106,7 +114,7 @@ def test_invalid_stored_acl_value_is_denied(monkeypatch) -> None:
     monkeypatch.setattr(permission_service.user_repository, "get_user_by_id", get_user)
 
     with pytest.raises(HTTPException) as error:
-        asyncio.run(permission_service.update_permission(
+        resolve_immediate(permission_service.update_permission(
             None, tenant_id, row.id,
             PermissionUpdateRequest(permission=PermissionValue.VIEW_ORDERS),
             acting_user=actor(Role.STORE_OWNER, tenant_id),
@@ -145,11 +153,11 @@ def test_user_role_update_cannot_self_escalate_or_assign_above_actor(
         None, tenant_id, target.id, UserUpdateRequest(role=new_role), acting_user=current
     )
     if allowed:
-        assert asyncio.run(operation).role == new_role
+        assert resolve_immediate(operation).role == new_role
         assert writes[0]["role"] == new_role.value
     else:
         with pytest.raises(HTTPException) as error:
-            asyncio.run(operation)
+            resolve_immediate(operation)
         assert error.value.status_code == 403
         assert writes == []
 

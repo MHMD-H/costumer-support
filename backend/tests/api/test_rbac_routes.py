@@ -5,10 +5,14 @@ from datetime import datetime, timezone
 from uuid import uuid4
 
 import pytest
+from fastapi import HTTPException
 from fastapi.testclient import TestClient
 
-from app.core.auth import get_current_dashboard_user
-from app.core.rbac import Role
+from app.core.auth import (
+    get_current_dashboard_user,
+    get_or_create_current_application_user,
+)
+from app.core.rbac import Permission, Role
 from app.db.postgres import get_db_session
 from app.db.repositories import permissions as permission_repository
 from app.features import agent as agent_service
@@ -23,9 +27,18 @@ from app.features.commerce import sales as sales_service
 from app.features.schemas import AuthUserResponse, PermissionListResponse
 from app.features.users import service as user_service
 from app.main import create_app
+from app.api.routes import documents as document_routes
+from app.api.routes import shopify as shopify_routes
 
 
 _DEFAULT_TENANT = object()
+
+
+def resolve_immediate(coroutine):
+    """Drive mocked async route calls that complete without yielding."""
+    with pytest.raises(StopIteration) as result:
+        coroutine.send(None)
+    return result.value.value
 
 
 def client_for(monkeypatch, role: Role, *, grants=(), tenant_id=_DEFAULT_TENANT, user_id=None):
@@ -36,6 +49,7 @@ def client_for(monkeypatch, role: Role, *, grants=(), tenant_id=_DEFAULT_TENANT,
     )
     app = create_app()
     app.dependency_overrides[get_current_dashboard_user] = lambda: user
+    app.dependency_overrides[get_or_create_current_application_user] = lambda: user
 
     async def no_database_session():
         yield None
@@ -114,6 +128,22 @@ def test_role_and_stored_grant_route_boundaries(
     assert response.status_code == expected, (role, grants, method, path, response.text)
 
 
+def test_document_retry_declares_manage_documents_permission() -> None:
+    route = next(
+        route
+        for route in document_routes.router.routes
+        if route.path.endswith("/{document_id}/retry")
+    )
+    declared_permissions = {
+        cell.cell_contents
+        for dependency in route.dependant.dependencies
+        for cell in (dependency.call.__closure__ or ())
+        if isinstance(cell.cell_contents, Permission)
+    }
+
+    assert declared_permissions == {Permission.MANAGE_DOCUMENTS}
+
+
 def test_unlinked_owner_can_start_only_shopify_onboarding(monkeypatch) -> None:
     async def application_user(_session, user_id):
         return SimpleNamespace(id=user_id, tenant_id=None, role="store_owner")
@@ -133,6 +163,50 @@ def test_unlinked_owner_can_start_only_shopify_onboarding(monkeypatch) -> None:
 
     other_client, _ = client_for(monkeypatch, Role.TEAM_MEMBER, tenant_id=None)
     assert other_client.get("/shopify/connect?shop_domain=example.myshopify.com").status_code == 403
+
+
+def test_shopify_status_uses_active_backend_connection(monkeypatch) -> None:
+    tenant_id = uuid4()
+
+    async def active_connection(_session, *, tenant_id: object):
+        assert tenant_id == expected_tenant_id
+        return SimpleNamespace(shop_domain="canonical.myshopify.com")
+
+    expected_tenant_id = tenant_id
+    monkeypatch.setattr(
+        "app.api.routes.shopify.shopify_service.get_active_connection",
+        active_connection,
+    )
+    user = AuthUserResponse(
+        id=uuid4(), tenant_id=tenant_id, name="Member",
+        email="member@example.com", role=Role.TEAM_MEMBER,
+    )
+
+    response = resolve_immediate(
+        shopify_routes.shopify_connection_status(user, None)
+    )
+
+    assert response.connected is True
+    assert response.shop_domain == "canonical.myshopify.com"
+
+
+def test_shopify_status_routes_unlinked_owner_and_rejects_unlinked_non_owner(
+    monkeypatch,
+) -> None:
+    owner = AuthUserResponse(
+        id=uuid4(), tenant_id=None, name="Owner",
+        email="owner@example.com", role=Role.STORE_OWNER,
+    )
+    response = resolve_immediate(
+        shopify_routes.shopify_connection_status(owner, None)
+    )
+    assert response.connected is False
+    assert response.shop_domain is None
+
+    member = owner.model_copy(update={"role": Role.TEAM_MEMBER})
+    with pytest.raises(HTTPException) as error:
+        resolve_immediate(shopify_routes.shopify_connection_status(member, None))
+    assert error.value.status_code == 403
 
 
 def test_chat_and_search_filter_document_sources_and_underlying_data(monkeypatch) -> None:
@@ -246,12 +320,16 @@ def test_team_member_cannot_read_document_sourced_messages_without_view_document
     assert client.get(f"/conversations/{conversation_id}/messages").status_code == 403
 
 
-def test_unknown_permission_request_returns_403_after_authentication(monkeypatch) -> None:
+def test_unknown_role_and_permission_requests_return_403_after_authentication(monkeypatch) -> None:
     client, _ = client_for(monkeypatch, Role.STORE_OWNER)
-    response = client.patch(
+    permission_response = client.patch(
         f"/permissions/{uuid4()}", json={"permission": "super_permission"}
     )
-    assert response.status_code == 403
+    role_response = client.patch(
+        f"/users/{uuid4()}", json={"role": "super_admin"}
+    )
+    assert permission_response.status_code == 403
+    assert role_response.status_code == 403
     assert TestClient(create_app()).patch(
         f"/permissions/{uuid4()}", json={"permission": "super_permission"}
     ).status_code == 401

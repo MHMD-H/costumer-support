@@ -52,11 +52,6 @@ from app.features.schemas import (
     OrderResponse,
     ProductListResponse,
     ProductResponse,
-    PublicChatMessage,
-    PublicChatRequest,
-    PublicChatResponse,
-    PublicSourceRef,
-    PublicWidgetConfigResponse,
     SalesSummaryRequest,
     SalesSummaryResponse,
     SearchRequest,
@@ -289,43 +284,6 @@ def dashboard_chat(
         message=message,
         sources=sources,
         used_tools=["get_sales"] if allow_sales_tool and request.mode in {"auto", "agent"} else [],
-    )
-
-
-def public_source_ref() -> PublicSourceRef:
-    return PublicSourceRef(
-        document_id=MOCK_DOCUMENT_ID,
-        chunk_id=MOCK_CHUNK_ID,
-        title="Shipping Policy",
-        snippet="Placeholder public source snippet.",
-        score=0.82,
-    )
-
-
-def public_chat(request: PublicChatRequest) -> PublicChatResponse:
-    conversation_id = request.conversation_id or MOCK_CONVERSATION_ID
-    message = PublicChatMessage(
-        id=MOCK_MESSAGE_ID,
-        sender="assistant",
-        content="This is a placeholder customer-safe response.",
-        sources=[public_source_ref()],
-        created_at=now_utc(),
-    )
-    return PublicChatResponse(
-        conversation_id=conversation_id,
-        message=message,
-        sources=[public_source_ref()],
-    )
-
-
-def widget_config(shop_id: str | None, shop_domain: str | None) -> PublicWidgetConfigResponse:
-    return PublicWidgetConfigResponse(
-        shop_id=shop_id,
-        shop_domain=shop_domain or "example-store.myshopify.com",
-        store_name="Example Store",
-        widget_enabled=True,
-        greeting="How can I help?",
-        theme={"primary_color": "#111827"},
     )
 
 

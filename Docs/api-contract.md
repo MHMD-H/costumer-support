@@ -217,6 +217,12 @@ DocumentChunkListResponse = OffsetPaginationResponse[DocumentChunkResponse]
 ```
 
 Document upload uses `multipart/form-data` with a `file` field, optional `title` field, and optional `visibility` field. Default visibility should be `internal`.
+The server authenticates and authorizes the dashboard user before reading the
+multipart body. Request bytes, validated file content, parser expansion, PDF
+pages, and extracted text are bounded before persistence or embedding. PDF
+and DOCX validation and extraction execute in killable, time- and memory-bounded
+subprocesses; parser failures are returned only as the generic invalid-upload
+response.
 
 ## Conversation and Dashboard Chat Models
 
@@ -431,8 +437,8 @@ callback remains part of the onboarding flow.
 | Endpoint | Method | Purpose | Auth | Request Body | Response Body | Status Codes |
 |---|---:|---|---|---|---|---|
 | `/public/widget/config` | GET | Load widget configuration for a Shopify storefront | Public widget validation | Query params: `shop_id` or `shop_domain`, `widget_public_key` | `PublicWidgetConfigResponse` | 200, 400, 403, 404, 429 |
-| `/public/chat` | POST | Send customer widget message and receive full answer | Public widget validation | `PublicChatRequest` | `PublicChatResponse` | 200, 400, 403, 404, 422, 429, 500 |
-| `/public/chat/stream` | POST | Send customer widget message and stream answer | Public widget validation | `PublicChatRequest` | SSE | 200, 400, 403, 404, 422, 429, 500 |
+| `/public/chat` | POST | Send customer widget message and receive full answer | Public widget validation | `PublicChatRequest` | `PublicChatResponse` | 200, 400, 403, 404, 413, 422, 429, 500 |
+| `/public/chat/stream` | POST | Send customer widget message and stream answer | Public widget validation | `PublicChatRequest` | SSE | 200, 400, 403, 404, 413, 422, 429, 500 |
 
 Public widget validation means the request must include a valid store identity and widget public key, and the request origin must match the tenant's allowed origins.
 

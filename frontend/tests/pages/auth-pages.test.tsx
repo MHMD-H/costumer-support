@@ -8,7 +8,7 @@ import ResetPasswordPage from "../../src/app/reset-password/page";
 import AccessDeniedPage from "../../src/app/access-denied/page";
 
 describe("dashboard authentication pages", () => {
-  it("renders a dashboard-only login preview with accessible fields and account paths", () => {
+  it("renders a dashboard-only login with accessible required fields and account paths", () => {
     const html = renderToStaticMarkup(<LoginPage />);
 
     expect(html).toContain("Log in");
@@ -27,7 +27,7 @@ describe("dashboard authentication pages", () => {
     expect(html).toContain("Shopify shoppers use the storefront chat without logging in.");
   });
 
-  it("renders registration and recovery form states without submitting data", () => {
+  it("renders registration and recovery form states", () => {
     const registerHtml = renderToStaticMarkup(<RegisterPage />);
     const forgotHtml = renderToStaticMarkup(<ForgotPasswordPage />);
 
@@ -39,13 +39,13 @@ describe("dashboard authentication pages", () => {
     expect(forgotHtml).toContain('type="email"');
   });
 
-  it("renders expired-link and permission-denied states", () => {
+  it("checks a recovery session before showing password reset and renders permission-denied state", () => {
     const html = renderToStaticMarkup(<ResetPasswordPage />);
     const deniedHtml = renderToStaticMarkup(<AccessDeniedPage />);
 
-    expect(html).toContain("This reset link has expired");
-    expect(html).toContain("invalid or expired");
-    expect(html).toContain("Request a new link");
+    expect(html).toContain("Choose a new password");
+    expect(html).toContain("Checking your password reset link");
+    expect(html).not.toContain("Update password");
     expect(deniedHtml).toContain("Dashboard access unavailable");
     expect(deniedHtml).toContain("store administrator");
   });

@@ -3,6 +3,11 @@
 from fastapi.testclient import TestClient
 
 from app.core.auth import get_current_dashboard_user
+from app.core.tenant_context import (
+    TenantContext,
+    resolve_public_widget_tenant_from_body,
+    resolve_public_widget_tenant_from_query,
+)
 from app.db.postgres import get_db_session
 from app.features.mock_services import mock_auth_user
 from app.features.schemas import (
@@ -17,8 +22,27 @@ from app.features.schemas import (
 from app.main import create_app
 
 
+PUBLIC_TENANT = TenantContext(
+    tenant_id="11111111-1111-1111-1111-111111111111",
+    shop_id="gid://shopify/Shop/1",
+    shop_domain="example-store.myshopify.com",
+    store_name="Example Store",
+    widget_allowed_origins=("https://example-store.myshopify.com",),
+    widget_settings={},
+)
+
+
+async def fake_public_tenant():
+    return PUBLIC_TENANT
+
+
+async def fake_db_session():
+    yield None
+
+
 DOCUMENTED_ROUTES = {
     ("GET", "/auth/me"),
+    ("GET", "/shopify/status"),
     ("GET", "/users"),
     ("GET", "/users/{user_id}"),
     ("PATCH", "/users/{user_id}"),
@@ -99,6 +123,9 @@ def test_dashboard_endpoints_require_auth_and_do_not_accept_passwords() -> None:
 
 def test_public_widget_endpoints_do_not_require_dashboard_jwt() -> None:
     app = create_app()
+    app.dependency_overrides[resolve_public_widget_tenant_from_query] = fake_public_tenant
+    app.dependency_overrides[resolve_public_widget_tenant_from_body] = fake_public_tenant
+    app.dependency_overrides[get_db_session] = fake_db_session
     client = TestClient(app)
 
     config = client.get(
@@ -107,6 +134,7 @@ def test_public_widget_endpoints_do_not_require_dashboard_jwt() -> None:
             "shop_domain": "example-store.myshopify.com",
             "widget_public_key": "public-key",
         },
+        headers={"Origin": "https://example-store.myshopify.com"},
     )
     chat = client.post(
         "/public/chat",
@@ -115,6 +143,7 @@ def test_public_widget_endpoints_do_not_require_dashboard_jwt() -> None:
             "widget_public_key": "public-key",
             "message": "hello",
         },
+        headers={"Origin": "https://example-store.myshopify.com"},
     )
 
     assert config.status_code == 200
@@ -137,13 +166,13 @@ def test_schema_examples_validate() -> None:
 
     app = create_app()
     app.dependency_overrides[get_current_dashboard_user] = mock_auth_user
-    async def fake_db_session():
-        yield None
     app.dependency_overrides[get_db_session] = fake_db_session
+    app.dependency_overrides[resolve_public_widget_tenant_from_body] = fake_public_tenant
     client = TestClient(app)
     public_response = client.post(
         "/public/chat",
         json=public_request.model_dump(mode="json"),
+        headers={"Origin": "https://example-store.myshopify.com"},
     )
     dashboard_response = client.post(
         "/chat",

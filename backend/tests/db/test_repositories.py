@@ -7,7 +7,7 @@ from uuid import UUID
 from sqlalchemy.dialects import postgresql
 
 from app.db.models import Product
-from app.db.repositories import agent_tools, conversations, permissions, products, shopify, users
+from app.db.repositories import agent_tools, conversations, documents, permissions, products, shopify, tenants, users
 
 
 TENANT_ID = UUID("11111111-1111-1111-1111-111111111111")
@@ -29,6 +29,9 @@ class ScalarResult:
     def all(self):
         return self.value
 
+    def scalar_one_or_none(self):
+        return self.value
+
 
 class CapturingSession:
     def __init__(self, results):
@@ -47,6 +50,31 @@ def sql(statement) -> str:
             compile_kwargs={"literal_binds": True},
         )
     )
+
+
+def resolve_immediate(coroutine):
+    """Drive mocked async repository calls that complete without yielding."""
+    try:
+        coroutine.send(None)
+    except StopIteration as result:
+        return result.value
+    raise AssertionError("Expected repository coroutine to complete immediately")
+
+
+def test_document_queue_prioritizes_a_different_tenant() -> None:
+    class FirstResult:
+        def first(self):
+            return None
+
+    session = CapturingSession([FirstResult()])
+
+    result = asyncio.run(documents.next_uploaded_document(session, TENANT_ID))
+
+    assert result is None
+    statement = sql(session.statements[0])
+    assert "CASE WHEN (documents.tenant_id =" in statement
+    assert "THEN 1 ELSE 0 END" in statement
+    assert "documents.created_at" in statement
 
 
 def test_product_list_applies_tenant_filter_offset_and_stable_ordering() -> None:
@@ -81,6 +109,38 @@ def test_product_list_applies_tenant_filter_offset_and_stable_ordering() -> None
     assert "LIMIT 20 OFFSET 40" in statement_sql
 
 
+def test_public_product_lookup_requires_tenant_and_public_visibility() -> None:
+    session = CapturingSession([ScalarResult(None)])
+
+    resolve_immediate(
+        products.get_public_product_by_external_id(session, TENANT_ID, "shopify-product-1")
+    )
+
+    statement_sql = sql(session.statements[0])
+    assert f"products.tenant_id = '{TENANT_ID}'" in statement_sql
+    assert "products.external_product_id = 'shopify-product-1'" in statement_sql
+    assert "products.public_visible IS true" in statement_sql
+
+
+def test_public_widget_tenant_lookup_requires_full_mapping_and_enabled_widget() -> None:
+    session = CapturingSession([ScalarResult(None)])
+
+    resolve_immediate(
+        tenants.get_enabled_public_widget_tenant(
+            session,
+            shop_id="gid://shopify/Shop/1",
+            shop_domain="merchant.myshopify.com",
+            widget_public_key="public-key",
+        )
+    )
+
+    statement_sql = sql(session.statements[0])
+    assert "tenants.shop_id = 'gid://shopify/Shop/1'" in statement_sql
+    assert "tenants.shop_domain = 'merchant.myshopify.com'" in statement_sql
+    assert "tenants.widget_public_key = 'public-key'" in statement_sql
+    assert "tenants.widget_enabled IS true" in statement_sql
+
+
 def test_conversation_cursor_list_uses_created_at_and_id_boundary() -> None:
     cursor_time = datetime(2026, 1, 1, tzinfo=timezone.utc)
     session = CapturingSession([ScalarResult([])])
@@ -108,14 +168,13 @@ def test_acl_values_require_matching_permission_and_user_tenants() -> None:
     user_id = UUID("55555555-5555-5555-5555-555555555555")
     session = CapturingSession([ScalarResult([("view_orders", TENANT_ID)])])
 
-    values = asyncio.run(
+    values = resolve_immediate(
         permissions.list_user_permission_values(session, TENANT_ID, user_id)
     )
 
     statement_sql = sql(session.statements[0])
     assert values == [("view_orders", TENANT_ID)]
-    assert "permissions.tenant_id" in statement_sql
-    assert f"permissions.tenant_id = '{TENANT_ID}'" not in statement_sql
+    assert f"permissions.tenant_id = '{TENANT_ID}'" in statement_sql
     assert f"permissions.user_id = '{user_id}'" in statement_sql
     assert f"users.tenant_id = '{TENANT_ID}'" in statement_sql
 
@@ -172,3 +231,44 @@ def test_shopify_callback_user_lookup_locks_current_role() -> None:
     statement_sql = sql(session.statements[0])
     assert f"users.id = '{user_id}'" in statement_sql
     assert "FOR UPDATE OF users" in statement_sql
+
+
+def test_shopify_state_consumption_is_bound_unexpired_and_single_use() -> None:
+    consumed_at = datetime(2026, 10, 25, tzinfo=timezone.utc)
+
+    class Session(CapturingSession):
+        async def commit(self):
+            pass
+
+    session = Session([ScalarResult(None)])
+    resolve_immediate(
+        shopify.consume_oauth_state(
+            session,
+            state_hash="hashed-state",
+            shop_domain="merchant.myshopify.com",
+            consumed_at=consumed_at,
+        )
+    )
+
+    statement_sql = sql(session.statements[0])
+    assert "shopify_oauth_states.state_hash = 'hashed-state'" in statement_sql
+    assert "shopify_oauth_states.shop_domain = 'merchant.myshopify.com'" in statement_sql
+    assert "shopify_oauth_states.consumed_at IS NULL" in statement_sql
+    assert "shopify_oauth_states.expires_at >" in statement_sql
+    assert "UPDATE shopify_oauth_states" in statement_sql
+
+
+def test_shopify_status_query_requires_active_connection() -> None:
+    session = CapturingSession([ScalarResult(None)])
+
+    resolve_immediate(shopify.get_active_connection_by_tenant_id(session, TENANT_ID))
+
+    statement_sql = sql(session.statements[0])
+    assert f"shopify_connections.tenant_id = '{TENANT_ID}'" in statement_sql
+    assert "shopify_connections.status = 'active'" in statement_sql
+
+
+def test_shopify_connection_model_has_no_token_storage_column() -> None:
+    from app.db.models import ShopifyConnection
+
+    assert "access_token_encrypted" not in ShopifyConnection.__table__.columns

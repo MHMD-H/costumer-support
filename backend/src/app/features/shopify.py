@@ -7,14 +7,14 @@ from os import getenv
 import re
 from secrets import token_urlsafe
 from urllib.parse import urlencode
+from uuid import UUID
 
-from cryptography.fernet import Fernet, InvalidToken
 import httpx
 from fastapi import HTTPException, status
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.db.models import User
+from app.db.models import ShopifyConnection, User
 from app.db.repositories import shopify as shopify_repository
 from app.core.rbac import Role
 
@@ -41,15 +41,6 @@ def normalize_shop_domain(shop_domain: str) -> str:
 
 def state_hash(state: str) -> str:
     return sha256(state.encode("utf-8")).hexdigest()
-
-
-def encrypt_access_token(access_token: str) -> str:
-    try:
-        return Fernet(configuration("SHOPIFY_TOKEN_ENCRYPTION_KEY").encode()).encrypt(
-            access_token.encode()
-        ).decode()
-    except (ValueError, InvalidToken):
-        raise RuntimeError("SHOPIFY_TOKEN_ENCRYPTION_KEY must be a valid Fernet key") from None
 
 
 def build_authorization_url(shop_domain: str, state: str) -> str:
@@ -80,14 +71,16 @@ async def begin_connection(
 ) -> str:
     if not user.is_active or user.role != Role.STORE_OWNER:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail={"error": "forbidden", "message": "Shopify connection requires an active store owner."})
+    normalized_domain = normalize_shop_domain(shop_domain)
     state = token_urlsafe(32)
     await shopify_repository.create_oauth_state(
         session,
         user_id=user.id,
         state_hash=state_hash(state),
+        shop_domain=normalized_domain,
         expires_at=datetime.now(timezone.utc) + OAUTH_STATE_TTL,
     )
-    return build_authorization_url(normalize_shop_domain(shop_domain), state)
+    return build_authorization_url(normalized_domain, state)
 
 
 async def exchange_code_for_access_token(shop_domain: str, code: str) -> str:
@@ -98,6 +91,7 @@ async def exchange_code_for_access_token(shop_domain: str, code: str) -> str:
                 "client_id": configuration("SHOPIFY_API_KEY"),
                 "client_secret": configuration("SHOPIFY_API_SECRET"),
                 "code": code,
+                "expiring": "1",
             },
         )
         response.raise_for_status()
@@ -112,14 +106,27 @@ async def exchange_code_for_access_token(shop_domain: str, code: str) -> str:
 
 async def fetch_canonical_shop(shop_domain: str, access_token: str) -> tuple[str, str, str]:
     async with httpx.AsyncClient(timeout=10.0) as client:
-        response = await client.get(
-            f"https://{shop_domain}/admin/api/{getenv('SHOPIFY_API_VERSION', '2026-07')}/shop.json",
+        response = await client.post(
+            f"https://{shop_domain}/admin/api/{getenv('SHOPIFY_API_VERSION', '2026-07')}/graphql.json",
             headers={"X-Shopify-Access-Token": access_token},
+            json={
+                "query": (
+                    "query AppStoreIdentity { "
+                    "shop { id name myshopifyDomain } "
+                    "}"
+                )
+            },
         )
         response.raise_for_status()
-    shop = response.json().get("shop", {})
+    payload = response.json()
+    if payload.get("errors"):
+        raise HTTPException(
+            status_code=status.HTTP_502_BAD_GATEWAY,
+            detail={"error": "bad_gateway", "message": "Shopify did not return a usable store identity."},
+        )
+    shop = payload.get("data", {}).get("shop", {})
     shop_id = shop.get("id")
-    canonical_domain = shop.get("myshopify_domain")
+    canonical_domain = shop.get("myshopifyDomain")
     shop_name = shop.get("name")
     if not isinstance(shop_id, (str, int)) or not isinstance(canonical_domain, str) or not isinstance(shop_name, str):
         raise HTTPException(
@@ -140,17 +147,20 @@ async def complete_connection(
     if not is_valid_callback_hmac(callback_parameters):
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "bad_request", "message": "Shopify callback is invalid."})
 
+    normalized_callback_domain = normalize_shop_domain(callback_shop_domain)
     oauth_state = await shopify_repository.consume_oauth_state(
-        session, state_hash=state_hash(state), consumed_at=datetime.now(timezone.utc)
+        session,
+        state_hash=state_hash(state),
+        shop_domain=normalized_callback_domain,
+        consumed_at=datetime.now(timezone.utc),
     )
     if oauth_state is None:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail={"error": "bad_request", "message": "Shopify connection state is invalid or expired."})
 
-    access_token = await exchange_code_for_access_token(normalize_shop_domain(callback_shop_domain), code)
+    access_token = await exchange_code_for_access_token(normalized_callback_domain, code)
     shop_id, canonical_domain, shop_name = await fetch_canonical_shop(
-        normalize_shop_domain(callback_shop_domain), access_token
+        normalized_callback_domain, access_token
     )
-    encrypted_token = encrypt_access_token(access_token)
 
     try:
         async with session.begin():
@@ -179,7 +189,14 @@ async def complete_connection(
                 tenant_id=user.tenant_id,
                 shop_id=shop_id,
                 shop_domain=canonical_domain,
-                access_token_encrypted=encrypted_token,
             )
     except IntegrityError:
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail={"error": "conflict", "message": "This Shopify store is already connected."}) from None
+
+
+async def get_active_connection(
+    session: AsyncSession, *, tenant_id: UUID
+) -> ShopifyConnection | None:
+    return await shopify_repository.get_active_connection_by_tenant_id(
+        session, tenant_id
+    )
