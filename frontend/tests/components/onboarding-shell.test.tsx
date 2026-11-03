@@ -50,4 +50,12 @@ describe("onboarding shared shell", () => {
     expect(html).toContain('aria-label="Log out of AI Commerce Copilot"');
     expect(html).toContain(">Log out</button>");
   });
+
+  it("marks all five milestones complete for a verified ready store", () => {
+    const html = renderToStaticMarkup(
+      <OnboardingShell allStepsComplete referenceId="shopifyStoreReady"><h1>Ready</h1></OnboardingShell>,
+    );
+    expect(html.match(/<span class="sr-only">Completed<\/span>/g)).toHaveLength(5);
+    expect(html).toContain('aria-current="step"');
+  });
 });

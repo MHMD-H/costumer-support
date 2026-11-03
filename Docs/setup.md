@@ -43,23 +43,32 @@ before the production integrations are added.
 
 ### Document Processing
 
-- Current status: upload contract exists, but parsing/chunking/embedding are not
-  implemented.
-- Why placeholder: the API contract can be tested before ingestion internals are
-  ready.
-- Replace when: RAG ingestion iterations implement parsing, chunking,
-  embeddings, and status updates.
-- Target implementation: validated file upload, metadata persistence, text
-  extraction, chunking, embeddings, and processing status updates.
+- Current status: authenticated PDF, DOCX, and TXT uploads are size-bounded,
+  structurally validated, staged under the trusted tenant, and processed by the
+  standalone ingestion worker. Authentication and upload permission checks run
+  before multipart parsing. The worker rotates between queued tenants when
+  possible and records safe `ready` or `failed` status.
+- Resource limits: 5 MB input, bounded multipart bytes, at most 500 PDF pages,
+  bounded DOCX entries/expanded bytes, and at most 2,000,000 extracted text
+  characters before chunking and embedding. PDF/DOCX validation and text
+  extraction run in killable subprocesses with a 30-second wall-clock limit
+  and a 1 GB process-memory limit.
+- Production boundary: the current private local staging model is for the
+  documented single-host deployment only. Do not enable production merchant
+  uploads until shared private storage and a fail-closed malware-scanning
+  provider are selected and configured.
 
 ### Public Security
 
-- Current status: placeholder widget/origin/rate-limit validation.
-- Why placeholder: local/mock widget tests need the public route contract before
-  production store validation exists.
-- Replace when: public widget is exposed beyond local/mock testing.
-- Target implementation: widget key validation, allowed-origin checks, tenant
-  lookup, and rate limiting.
+- Current status: public widget routes resolve an enabled tenant from the exact
+  store/widget mapping, require an allowlisted HTTPS storefront origin, and
+  apply a bounded per-client rate limit. Public chat request bodies are capped
+  before JSON parsing, with additional maximum lengths on public string fields.
+- Public chat currently returns a customer-safe placeholder without sources.
+  Real public retrieval must use the resolved tenant and public-only RAG filter;
+  optional product context is limited to same-tenant `public_visible` products.
+- The current rate limiter is process-local for the documented single-process
+  deployment. Use a shared limiter before running multiple API workers or hosts.
 
 ### Filters And Pagination
 

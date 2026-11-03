@@ -26,6 +26,7 @@ from app.api.routes import (
 from app.core.exceptions import add_exception_handlers
 from app.db.postgres import dispose_engine, validate_database_connection
 from app.features.document_uploads import UploadBodyLimitMiddleware
+from app.features.public_widget import PublicWidgetBodyLimitMiddleware
 
 
 @asynccontextmanager
@@ -43,14 +44,15 @@ def create_app() -> FastAPI:
         version="0.1.0",
         summary="V1/V2 API foundation for the dashboard and Shopify widget.",
         description=(
-            "Protected dashboard APIs require placeholder Supabase JWT validation. "
-            "Public widget APIs use placeholder store/widget validation."
+            "Protected dashboard APIs require cryptographically verified Supabase JWTs. "
+            "Public widget APIs require verified store, widget key, and origin mapping."
         ),
         lifespan=lifespan,
     )
 
     add_exception_handlers(app)
     app.add_middleware(UploadBodyLimitMiddleware)
+    app.add_middleware(PublicWidgetBodyLimitMiddleware)
     app.include_router(auth.router)
     app.include_router(shopify.router)
     app.include_router(users.router)

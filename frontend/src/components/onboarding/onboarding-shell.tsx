@@ -8,6 +8,7 @@ type OnboardingShellProps = {
   children: ReactNode;
   referenceId: OnboardingReferenceId;
   logOutAction?: ReactNode;
+  allStepsComplete?: boolean;
 };
 
 function ProgressMark({ complete, current }: { complete: boolean; current: boolean }) {
@@ -22,7 +23,7 @@ function ProgressMark({ complete, current }: { complete: boolean; current: boole
   return current ? <span aria-hidden="true" className="onboarding-progress__dot" /> : null;
 }
 
-export function OnboardingShell({ children, referenceId, logOutAction }: OnboardingShellProps) {
+export function OnboardingShell({ children, referenceId, logOutAction, allStepsComplete = false }: OnboardingShellProps) {
   const activeIndex = getOnboardingProgressIndex(referenceId);
 
   return (
@@ -43,7 +44,7 @@ export function OnboardingShell({ children, referenceId, logOutAction }: Onboard
       <nav aria-label="Onboarding progress" className="onboarding-progress">
         <ol className="onboarding-progress__steps">
           {ONBOARDING_PROGRESS_STEPS.map((step, index) => {
-            const complete = index < activeIndex;
+            const complete = index < activeIndex || (allStepsComplete && index === activeIndex);
             const current = index === activeIndex;
 
             return (

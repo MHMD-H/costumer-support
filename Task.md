@@ -10,6 +10,33 @@ This phase does not redesign the architecture, add multi-tenant memberships,
 implement Row Level Security (RLS), or build an advanced permissions engine
 beyond the existing roles and permissions data model.
 
+## Canonical Authentication and Shopify Routing Flow
+
+The implementation must preserve this flow. Supabase Auth is the identity and
+session authority; the application backend is the authority for connection,
+tenant, and dashboard-access state.
+
+```text
+Sign up -> Supabase creates the Auth user -> email verification
+        -> authenticated onboarding -> Shopify connection
+        -> verified Shopify callback -> backend saves tenant/store link
+        -> dashboard
+
+Log in -> Supabase verifies the platform email and password
+       -> frontend reads trusted backend connection state
+       -> connected store: dashboard
+       -> no connected store: Shopify connection onboarding
+```
+
+- The browser may persist Supabase's access and refresh tokens through its
+  configured client storage. Do not copy either token into the application
+  database, API payloads, logs, or analytics.
+- `sessionStorage` may hold display-only, short-lived form convenience state;
+  it must never decide whether a user is authenticated, verified, connected,
+  or authorized for the dashboard.
+- A normal login is not a Shopify OAuth callback. Only Shopify's return to the
+  backend callback completes a store connection.
+
 ## Working Rules
 
 - Complete one task at a time.
@@ -31,13 +58,29 @@ beyond the existing roles and permissions data model.
 **Goal:** Make Supabase Auth the only owner of signup, login, password reset,
 sessions, access tokens, and refresh tokens.
 
-**Required skills:** `supabase:supabase`, `codex-security:security-diff-scan`.
+**Required skills:** `supabase:supabase`, `vercel-react-best-practices`,
+`webapp-testing`, `codex-security:security-diff-scan`.
 
 **Expected result:** Dashboard users authenticate through Supabase Auth. The
-backend does not store, hash, or validate user passwords itself.
+backend does not store, hash, or validate user passwords itself. The login
+form performs a real Supabase `signInWithPassword` request rather than a
+preview-only interaction. Supabase client storage owns access-token and
+refresh-token persistence; the application database stores neither.
+
+**Required client-state rules:**
+
+- A verified Supabase session, not a `sessionStorage` marker, determines
+  whether a user may continue an onboarding page.
+- The frontend must use a trusted backend read to route an authenticated user:
+  a connected store goes to the dashboard; an unconnected user goes to
+  Shopify connection onboarding.
+- Missing, expired, or invalid Supabase sessions return the user to sign-in
+  with an actionable message. They must not be misreported merely because a
+  temporary onboarding email marker is absent.
 
 **Tests:** Authentication-flow tests and failure cases for invalid credentials,
-missing fields, expired reset links, and invalid reset tokens.
+missing fields, expired reset links, invalid reset tokens, page refresh/new
+tab during onboarding, and a real successful login.
 
 **Security review:** Confirm no service-role key or secret is exposed to the
 frontend, and no password is stored in the application database.
@@ -90,7 +133,8 @@ connect a Shopify store, then link that verified store to the application
 backend and tenant record.
 
 **Required skills:** `supabase:supabase`, `fastapi`,
-`supabase-postgres-best-practices`, `codex-security:security-diff-scan`.
+`supabase-postgres-best-practices`, `vercel-react-best-practices`,
+`webapp-testing`, `codex-security:security-diff-scan`.
 
 **Expected result:** An authenticated, linked application user without an
 active Shopify connection is sent to a merchant-only Shopify OAuth connection
@@ -125,6 +169,9 @@ connection onboarding flow.
 - Enforce unique Shopify-store-to-tenant mapping and reject attempts to attach
   a store that is already connected to a different tenant until an explicit
   transfer/disconnection process exists.
+- Expose only a trusted, minimal connection-status result needed for post-login
+  and post-callback routing. The browser must not decide this from a locally
+  stored flag, a query parameter, or a callback claim.
 
 **Tests:** A linked merchant reaches the dashboard; an unlinked merchant is
 sent to connect a store; invalid, expired, reused, or mismatched `state` is

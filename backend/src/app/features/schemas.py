@@ -251,6 +251,7 @@ class DocumentCreateResponse(BaseModel):
 
 class DocumentResponse(DocumentCreateResponse):
     chunk_count: int = 0
+    failure_reason: str | None = None
 
 
 class DocumentListResponse(OffsetPaginationResponse[DocumentResponse]):
@@ -350,14 +351,22 @@ class PublicSourceRef(BaseModel):
     score: float | None = None
 
 
+PUBLIC_WIDGET_SHOP_ID_MAX_LENGTH = 256
+PUBLIC_WIDGET_SHOP_DOMAIN_MAX_LENGTH = 253
+PUBLIC_WIDGET_KEY_MAX_LENGTH = 256
+PUBLIC_WIDGET_MESSAGE_MAX_LENGTH = 4_000
+PUBLIC_WIDGET_PAGE_URL_MAX_LENGTH = 2_048
+PUBLIC_WIDGET_PRODUCT_ID_MAX_LENGTH = 256
+
+
 class PublicChatRequest(BaseModel):
-    shop_id: str | None = None
-    shop_domain: str | None = None
-    widget_public_key: str
-    message: str = Field(min_length=1)
+    shop_id: str | None = Field(default=None, max_length=PUBLIC_WIDGET_SHOP_ID_MAX_LENGTH)
+    shop_domain: str | None = Field(default=None, max_length=PUBLIC_WIDGET_SHOP_DOMAIN_MAX_LENGTH)
+    widget_public_key: str = Field(max_length=PUBLIC_WIDGET_KEY_MAX_LENGTH)
+    message: str = Field(min_length=1, max_length=PUBLIC_WIDGET_MESSAGE_MAX_LENGTH)
     conversation_id: UUID | None = None
-    page_url: str | None = None
-    product_id: str | None = None
+    page_url: str | None = Field(default=None, max_length=PUBLIC_WIDGET_PAGE_URL_MAX_LENGTH)
+    product_id: str | None = Field(default=None, max_length=PUBLIC_WIDGET_PRODUCT_ID_MAX_LENGTH)
 
 
 class PublicChatMessage(BaseModel):

@@ -1,6 +1,5 @@
 """Closed Task 7 role policy and tenant-scoped ACL resolution."""
 
-import asyncio
 from uuid import uuid4
 
 import pytest
@@ -10,6 +9,15 @@ from app.core.permissions import checked_permission, checked_role, get_effective
 from app.core.rbac import Permission, Role, ROLE_GRANTABLE_PERMISSIONS, ROLE_PERMISSIONS
 from app.core.tenant_context import TenantContext
 from app.features.schemas import AuthUserResponse
+
+
+def resolve_immediate(coroutine):
+    """Drive mocked async authorization calls that complete without yielding."""
+    try:
+        coroutine.send(None)
+    except StopIteration as result:
+        return result.value
+    raise AssertionError("Expected mocked coroutine to complete immediately")
 
 
 def test_closed_role_and_permission_matrix() -> None:
@@ -89,10 +97,12 @@ def test_team_member_effective_permissions_use_only_valid_same_tenant_grants(
     )
     if expected_status:
         with pytest.raises(HTTPException) as error:
-            asyncio.run(get_effective_permissions(user, TenantContext(tenant_id), None))
+            resolve_immediate(get_effective_permissions(user, TenantContext(tenant_id), None))
         assert error.value.status_code == expected_status
     else:
-        effective = asyncio.run(get_effective_permissions(user, TenantContext(tenant_id), None))
+        effective = resolve_immediate(
+            get_effective_permissions(user, TenantContext(tenant_id), None)
+        )
         assert effective == ROLE_PERMISSIONS[Role.TEAM_MEMBER] | {
             Permission(value) for value in stored
         }
@@ -104,7 +114,7 @@ def test_effective_permissions_reject_mismatched_trusted_tenant() -> None:
         email="owner@example.com", role=Role.STORE_OWNER,
     )
     with pytest.raises(HTTPException) as error:
-        asyncio.run(get_effective_permissions(user, TenantContext(uuid4()), None))
+        resolve_immediate(get_effective_permissions(user, TenantContext(uuid4()), None))
     assert error.value.status_code == 403
 
 
@@ -122,5 +132,5 @@ def test_effective_permissions_reject_cross_tenant_acl_row(monkeypatch) -> None:
         "app.core.permissions.permission_repository.list_user_permission_values", rows
     )
     with pytest.raises(HTTPException) as error:
-        asyncio.run(get_effective_permissions(user, TenantContext(tenant_id), None))
+        resolve_immediate(get_effective_permissions(user, TenantContext(tenant_id), None))
     assert error.value.status_code == 403

@@ -9,6 +9,9 @@ from langchain_core.documents import Document
 from rag.loaders.base import (
     MAX_DOCUMENT_BYTES, LoaderContext, SourceType, Visibility, enrich_documents,
 )
+from rag.parsing.isolated import load_isolated_file
+
+MAX_EXTRACTED_TEXT_CHARACTERS = 2_000_000
 
 
 class _FileLoader:
@@ -39,13 +42,22 @@ class _FileLoader:
             raise ValueError(f"File too large: {self.path} exceeds the {limit_label}")
         if size == 0:
             raise ValueError(f"Empty file: {self.path}")
-        try:
-            loader_type = self._loader_type()
-        except ImportError as exc:
-            raise RuntimeError("Install rag/requirements.txt to use file loaders") from exc
-        documents = loader_type(str(self.path)).load()
+        if self.source_type in {"pdf", "docx"}:
+            documents = load_isolated_file(
+                self.path,
+                source_type=self.source_type,
+                max_bytes=self.max_bytes,
+            )
+        else:
+            try:
+                loader_type = self._loader_type()
+            except ImportError as exc:
+                raise RuntimeError("Install rag/requirements.txt to use file loaders") from exc
+            documents = loader_type(str(self.path)).load()
         if not _has_content(documents):
             raise ValueError(f"Empty file: {self.path} contains no non-whitespace content")
+        if sum(len(document.page_content) for document in documents) > MAX_EXTRACTED_TEXT_CHARACTERS:
+            raise ValueError(f"Extracted text is too large: {self.path}")
         if self.source_name:
             for document in documents:
                 document.metadata["source"] = self.source_name

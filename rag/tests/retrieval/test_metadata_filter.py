@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 from rag.core.contracts import DocumentChunkRecord
-from rag.retrieval.metadata_filter import filter_chunks
+from rag.retrieval.metadata_filter import filter_chunks, filter_public_chunks
 
 
 def _chunk(
@@ -78,5 +78,17 @@ def test_cross_tenant_chunks_are_filtered_out() -> None:
     ]
 
     filtered = filter_chunks(chunks, tenant_id="tenant-1")
+
+    assert [chunk.id for chunk in filtered] == ["own-public"]
+
+
+def test_public_widget_filter_rejects_internal_and_other_tenant_chunks() -> None:
+    chunks = [
+        _chunk("own-internal"),
+        _chunk("own-public", visibility="public"),
+        _chunk("other-public", tenant_id="tenant-2", visibility="public"),
+    ]
+
+    filtered = filter_public_chunks(chunks, tenant_id="tenant-1")
 
     assert [chunk.id for chunk in filtered] == ["own-public"]

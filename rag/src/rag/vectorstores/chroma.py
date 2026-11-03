@@ -54,6 +54,13 @@ class ChromaStore:
         ]})
         return self.vectorstore.add_documents(documents=prepared, ids=ids)
 
+    def delete_document(self, *, tenant_id: str, document_id: str) -> None:
+        """Clear vectors for one trusted tenant and document identity."""
+        self.vectorstore.delete(where={"$and": [
+            {"tenant_id": {"$eq": tenant_id}},
+            {"document_id": {"$eq": document_id}},
+        ]})
+
     def has_document_identity(self, *, tenant_id: str, source_type: str,
                               canonical_source: str) -> bool:
         result = self.vectorstore.get(

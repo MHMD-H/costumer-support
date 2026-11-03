@@ -1,6 +1,5 @@
 """Tenant predicates for dashboard resource repository reads."""
 
-import asyncio
 from uuid import uuid4
 
 import pytest
@@ -17,6 +16,7 @@ from app.features.schemas import (
     CampaignUpdateRequest,
     ConversationUpdateRequest,
     DocumentUpdateRequest,
+    FeedbackCreateRequest,
     FeedbackUpdateRequest,
     PermissionUpdateRequest,
     UserUpdateRequest,
@@ -75,6 +75,15 @@ def compile_sql(statement) -> str:
     )
 
 
+def resolve_immediate(coroutine):
+    """Drive mocked async repository/service calls that complete without yielding."""
+    try:
+        coroutine.send(None)
+    except StopIteration as result:
+        return result.value
+    raise AssertionError("Expected mocked coroutine to complete immediately")
+
+
 def test_tenant_owned_repository_reads_include_the_trusted_tenant_predicate() -> None:
     async def run_checks() -> None:
         checks = [
@@ -97,6 +106,7 @@ def test_tenant_owned_repository_reads_include_the_trusted_tenant_predicate() ->
             ("feedback.get", "feedback", lambda s: feedback.get_feedback_by_id(s, TENANT_ID, RESOURCE_ID)),
             ("permissions.get", "permissions", lambda s: permissions.get_permission_by_id(s, TENANT_ID, RESOURCE_ID)),
             ("permissions.user-value", "permissions", lambda s: permissions.get_permission_by_value(s, TENANT_ID, uuid4(), "view_products")),
+            ("permissions.effective-values", "permissions", lambda s: permissions.list_user_permission_values(s, TENANT_ID, uuid4())),
             ("permissions.list", "permissions", lambda s: permissions.list_permissions(s, TENANT_ID, user_id=None, limit=10, offset=0)),
             ("agent-tools.list", "agent_tools", lambda s: agent_tools.list_agent_tools(s, TENANT_ID, limit=10, offset=0)),
             ("agent-tools.get", "agent_tools", lambda s: agent_tools.get_tenant_agent_tool_by_name(s, TENANT_ID, "tool")),
@@ -113,8 +123,10 @@ def test_tenant_owned_repository_reads_include_the_trusted_tenant_predicate() ->
             assert all(predicate in compile_sql(statement) for statement in session.statements), name
             if name == "sales.summary":
                 assert "orders.tenant_id =" in compile_sql(session.statements[0])
+            if name == "permissions.effective-values":
+                assert f"users.tenant_id = '{TENANT_ID}'" in compile_sql(session.statements[0])
 
-    asyncio.run(run_checks())
+    resolve_immediate(run_checks())
 
 
 def test_cross_tenant_object_reads_and_updates_fail_as_not_found(monkeypatch) -> None:
@@ -128,8 +140,12 @@ def test_cross_tenant_object_reads_and_updates_fail_as_not_found(monkeypatch) ->
         (campaign_service.campaign_repository, "get_campaign_by_id", lambda: campaign_service.update_campaign(None, TENANT_ID, RESOURCE_ID, CampaignUpdateRequest())),
         (document_service.document_repository, "get_document_by_id", lambda: document_service.get_document(None, TENANT_ID, RESOURCE_ID)),
         (document_service.document_repository, "get_document_by_id", lambda: document_service.update_document(None, TENANT_ID, RESOURCE_ID, DocumentUpdateRequest(title="changed"))),
+        (document_service.document_repository, "get_document_by_id", lambda: document_service.retry_document(None, TENANT_ID, RESOURCE_ID)),
+        (document_service.document_repository, "get_document_by_id", lambda: document_service.list_document_chunks(None, TENANT_ID, RESOURCE_ID, limit=10, offset=0)),
         (conversation_service.conversation_repository, "get_conversation_by_id", lambda: conversation_service.get_conversation(None, TENANT_ID, RESOURCE_ID)),
         (conversation_service.conversation_repository, "get_conversation_by_id", lambda: conversation_service.update_conversation(None, TENANT_ID, RESOURCE_ID, ConversationUpdateRequest(title="changed"))),
+        (conversation_service.conversation_repository, "get_conversation_by_id", lambda: conversation_service.list_messages(None, TENANT_ID, RESOURCE_ID, limit=10, cursor=None)),
+        (feedback_service.conversation_repository, "get_conversation_by_id", lambda: feedback_service.create_feedback(None, TENANT_ID, uuid4(), FeedbackCreateRequest(conversation_id=RESOURCE_ID, message_id=uuid4(), rating=5))),
         (feedback_service.feedback_repository, "get_feedback_by_id", lambda: feedback_service.update_feedback(None, TENANT_ID, RESOURCE_ID, FeedbackUpdateRequest(rating=1))),
         (permission_service.permission_repository, "get_permission_by_id", lambda: permission_service.update_permission(None, TENANT_ID, RESOURCE_ID, PermissionUpdateRequest(permission="view_products"))),
         (agent.agent_tool_repository, "get_tenant_agent_tool_by_name", lambda: agent.update_agent_tool(None, TENANT_ID, "tool", AgentToolUpdateRequest(description="changed"))),
@@ -140,5 +156,5 @@ def test_cross_tenant_object_reads_and_updates_fail_as_not_found(monkeypatch) ->
     for repository, method_name, operation in checks:
         monkeypatch.setattr(repository, method_name, missing)
         with pytest.raises(HTTPException) as error:
-            asyncio.run(operation())
+            resolve_immediate(operation())
         assert error.value.status_code == 404, (repository.__name__, method_name)

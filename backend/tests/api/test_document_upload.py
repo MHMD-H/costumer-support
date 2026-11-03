@@ -1,5 +1,6 @@
 """Task 20 upload acceptance and isolation checks."""
 
+import asyncio
 from datetime import datetime, timezone
 from io import BytesIO
 from uuid import uuid4
@@ -13,6 +14,8 @@ from app.core.auth import get_current_dashboard_user
 from app.db.models import Document
 from app.db.postgres import get_db_session
 from app.features import documents as service
+from app.features import document_uploads
+from app.features.document_uploads import MAX_MULTIPART_BYTES, UploadBodyLimitMiddleware
 from app.features.mock_services import mock_auth_user
 from app.main import create_app
 
@@ -149,3 +152,155 @@ def test_database_failure_removes_staged_content(upload_client, monkeypatch):
     with pytest.raises(RuntimeError, match="database unavailable"):
         post(client, "policy.txt", b"Returns within 30 days")
     assert not list((root / str(user.tenant_id)).glob("*"))
+
+
+def test_replacement_request_is_bounded_before_reading_file(upload_client):
+    client, user, _calls, root = upload_client
+    created = post(client, "policy.txt", b"Original policy")
+    document_id = created.json()["id"]
+    response = client.put(
+        f"/documents/{document_id}",
+        files={"file": ("new.txt", b"x" * (5 * 1024 * 1024 + 64 * 1024), "text/plain")},
+    )
+    assert response.status_code == 413
+    assert (root / str(user.tenant_id) / f"{document_id}.txt").read_bytes() == b"Original policy"
+
+
+def test_retry_requires_manage_documents_permission(upload_client, monkeypatch):
+    client, user, _calls, _root = upload_client
+    client.app.dependency_overrides[get_current_dashboard_user] = lambda: user.model_copy(update={"role": "team_member"})
+    async def no_grants(_session, _tenant_id, _user_id):
+        return []
+    from app.core import permissions
+    monkeypatch.setattr(permissions.permission_repository, "list_user_permission_values", no_grants)
+    response = client.post(f"/documents/{uuid4()}/retry")
+    assert response.status_code == 403
+
+
+def test_upload_limit_does_not_read_body_before_authentication() -> None:
+    received = False
+    sent = []
+
+    async def downstream(_scope, _receive, send):
+        await send({"type": "http.response.start", "status": 401, "headers": []})
+        await send({"type": "http.response.body", "body": b""})
+
+    async def receive():
+        nonlocal received
+        received = True
+        raise AssertionError("Unauthenticated upload body was read")
+
+    async def send(message):
+        sent.append(message)
+
+    asyncio.run(UploadBodyLimitMiddleware(downstream)(
+        {
+            "type": "http", "method": "POST", "path": "/documents",
+            "headers": [(b"content-length", str(MAX_MULTIPART_BYTES + 1).encode())],
+        },
+        receive,
+        send,
+    ))
+
+    assert received is False
+    assert sent[0]["status"] == 401
+
+
+def test_upload_limit_counts_streamed_bytes_with_no_content_length() -> None:
+    sent = []
+    chunks = iter([
+        {"type": "http.request", "body": b"x" * (3 * 1024 * 1024), "more_body": True},
+        {"type": "http.request", "body": b"x" * (3 * 1024 * 1024), "more_body": False},
+    ])
+
+    async def downstream(_scope, receive, _send):
+        await receive()
+        await receive()
+
+    async def receive():
+        return next(chunks)
+
+    async def send(message):
+        sent.append(message)
+
+    asyncio.run(UploadBodyLimitMiddleware(downstream)(
+        {"type": "http", "method": "POST", "path": "/documents", "headers": []},
+        receive,
+        send,
+    ))
+
+    assert sent[0]["type"] == "http.response.start"
+    assert sent[0]["status"] == 413
+
+
+def test_pdf_page_limit_rejects_processing_amplification(upload_client):
+    client, _user, _calls, root = upload_client
+    pdf = BytesIO()
+    writer = PdfWriter()
+    for _ in range(501):
+        writer.add_blank_page(width=200, height=200)
+    writer.write(pdf)
+
+    response = post(client, "too-many-pages.pdf", pdf.getvalue())
+
+    assert response.status_code == 400
+    assert not list(root.rglob("*"))
+
+
+def test_pdf_validation_uses_isolated_parser(upload_client, monkeypatch):
+    client, _user, _calls, _root = upload_client
+    calls = []
+
+    def validate(data, *, max_pages):
+        calls.append((data, max_pages))
+
+    monkeypatch.setattr(document_uploads, "validate_pdf_bytes", validate)
+
+    response = post(client, "policy.pdf", b"%PDF-1.4\n%%EOF")
+
+    assert response.status_code == 201
+    assert calls == [(b"%PDF-1.4\n%%EOF", document_uploads.MAX_PDF_PAGES)]
+
+
+def test_docx_validation_uses_isolated_parser(upload_client, monkeypatch):
+    client, _user, _calls, _root = upload_client
+    calls = []
+
+    def validate(data):
+        calls.append(data)
+
+    monkeypatch.setattr(document_uploads, "validate_docx_bytes", validate)
+
+    response = post(client, "policy.docx", b"PK\x03\x04isolated")
+
+    assert response.status_code == 201
+    assert calls == [b"PK\x03\x04isolated"]
+
+
+def test_pdf_parser_resource_failure_is_rejected_before_storage(upload_client, monkeypatch):
+    client, _user, _calls, root = upload_client
+
+    def exhausts_resources(_data, *, max_pages):
+        assert max_pages == document_uploads.MAX_PDF_PAGES
+        raise document_uploads.IsolatedParserResourceError("resource limit")
+
+    monkeypatch.setattr(document_uploads, "validate_pdf_bytes", exhausts_resources)
+
+    response = post(client, "policy.pdf", b"%PDF-1.4\n%%EOF")
+
+    assert response.status_code == 400
+    assert not list(root.rglob("*"))
+
+
+def test_docx_parser_resource_failure_is_rejected_before_storage(upload_client, monkeypatch):
+    client, _user, _calls, root = upload_client
+
+    def exhausts_resources(_data):
+        raise document_uploads.IsolatedParserResourceError("resource limit")
+
+    monkeypatch.setattr(document_uploads, "validate_docx_bytes", exhausts_resources)
+
+    response = post(client, "policy.docx", b"PK\x03\x04isolated")
+
+    assert response.status_code == 400
+    assert not list(root.rglob("*"))

@@ -27,6 +27,8 @@ src/rag/loaders/files.py
 src/rag/loaders/notion.py
 src/rag/loaders/web.py
 src/rag/parsing/__init__.py
+src/rag/parsing/_worker.py
+src/rag/parsing/isolated.py
 src/rag/retrieval/__init__.py
 src/rag/retrieval/metadata_filter.py
 src/rag/retrieval/query_rewriter.py

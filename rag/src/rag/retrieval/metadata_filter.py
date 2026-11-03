@@ -19,3 +19,14 @@ def filter_chunks(
         for chunk in chunks
         if chunk.tenant_id == tenant_id and chunk.visibility in allowed
     ]
+
+
+def filter_public_chunks(
+    chunks: Iterable[Chunk], *, tenant_id: str
+) -> list[Chunk]:
+    """Apply the mandatory public-widget tenant and visibility boundary."""
+    return filter_chunks(
+        chunks,
+        tenant_id=tenant_id,
+        allowed_visibility={"public"},
+    )

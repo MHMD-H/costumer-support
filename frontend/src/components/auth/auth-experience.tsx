@@ -2,13 +2,22 @@
 
 import Link from "next/link";
 import { type FormEvent, useEffect, useState } from "react";
-import { signUp } from "../../lib/auth";
+import {
+  getVerifiedUserEmail,
+  requestPasswordReset,
+  signInWithPassword,
+  signOut,
+  signUp,
+  updatePassword,
+} from "../../lib/auth";
+import { destinationForConnectionStatus } from "../../lib/auth-routing";
+import { readShopifyConnectionStatus } from "../../lib/shopify-connection-status";
 
 import { BrandMark } from "../ui/brand-mark";
 import { ContourBackground } from "../ui/contour-background";
 import { FieldHelp } from "../ui/primitives";
 
-type AuthView = "login" | "register" | "forgot" | "expired" | "denied";
+type AuthView = "login" | "register" | "forgot" | "reset" | "expired" | "denied";
 
 const VIEW_CONTENT: Record<AuthView, { title: string; description: string }> = {
   login: {
@@ -22,6 +31,10 @@ const VIEW_CONTENT: Record<AuthView, { title: string; description: string }> = {
   forgot: {
     title: "Forgot password?",
     description: "Enter your email address and we’ll help you get back into your dashboard.",
+  },
+  reset: {
+    title: "Choose a new password",
+    description: "Enter a new password for your dashboard account.",
   },
   expired: {
     title: "This reset link has expired",
@@ -62,26 +75,49 @@ function InfoIcon() {
 export function AuthExperience({ view }: { view: AuthView }) {
   const [isPreparing, setIsPreparing] = useState(false);
   const [notice, setNotice] = useState("");
+  const [resetState, setResetState] = useState<"checking" | "ready" | "expired">(
+    view === "reset" ? "checking" : "ready",
+  );
   const content = VIEW_CONTENT[view];
-  const hasForm = view === "login" || view === "register" || view === "forgot";
+  const hasForm = view === "login" || view === "register" || view === "forgot" || (view === "reset" && resetState === "ready");
 
   useEffect(() => {
-    if (view === "login" && new URLSearchParams(window.location.search).get("verification") === "expired") {
-      setNotice("Your verification session is missing or expired. Sign in and request a new code to continue.");
+    if (view === "login") {
+      const search = new URLSearchParams(window.location.search);
+      if (search.get("verification") === "expired") {
+        setNotice("Your verification session is missing or expired. Sign in and request a new code to continue.");
+      } else if (search.get("session") === "expired") {
+        setNotice("Your session has ended. Sign in again to continue.");
+      } else if (search.get("password") === "updated") {
+        setNotice("Your password was updated. Sign in with your new password.");
+      }
     }
   }, [view]);
 
-  async function handlePreviewSubmit(event: FormEvent<HTMLFormElement>) {
+  useEffect(() => {
+    if (view !== "reset") return;
+    let active = true;
+    void getVerifiedUserEmail().then((email) => {
+      if (active) setResetState(email ? "ready" : "expired");
+    }).catch(() => {
+      if (active) setResetState("expired");
+    });
+    return () => { active = false; };
+  }, [view]);
+
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     setIsPreparing(true);
     setNotice("");
 
+    const form = new FormData(event.currentTarget);
+    const email = String(form.get("email") ?? "").trim().toLowerCase();
+    const password = String(form.get("password") ?? "");
+
     if (view === "register") {
-      const form = new FormData(event.currentTarget);
-      const email = String(form.get("email") ?? "").trim().toLowerCase();
-      const password = String(form.get("password") ?? "");
       try {
         await signUp(email, password);
+        // Convenience state only: Supabase verification and /auth/me remain authoritative.
         sessionStorage.setItem("pendingVerificationEmail", email);
         window.location.assign("/onboarding/verify-email");
       } catch (error) {
@@ -92,13 +128,54 @@ export function AuthExperience({ view }: { view: AuthView }) {
       return;
     }
 
-    window.setTimeout(() => {
-      setIsPreparing(false);
-      setNotice(view === "login"
-        ? "Preview complete. Your details were not sent and you are not signed in."
-        : "Preview complete. No reset email was sent.");
-    }, 300);
+    if (view === "login") {
+      try {
+        await signInWithPassword(email, password);
+        const status = await readShopifyConnectionStatus();
+        const destination = destinationForConnectionStatus(status);
+        if (destination) {
+          window.location.assign(destination);
+          return;
+        }
+        setNotice("We couldn’t confirm your workspace right now. Please try again.");
+      } catch {
+        setNotice("The email or password is incorrect. Check your details and try again.");
+      } finally {
+        setIsPreparing(false);
+      }
+      return;
+    }
+
+    if (view === "forgot") {
+      try {
+        await requestPasswordReset(email, `${window.location.origin}/reset-password`);
+        setNotice("If an account exists for that email, a password reset link is on its way.");
+      } catch {
+        setNotice("We couldn’t send a reset link right now. Please try again.");
+      } finally {
+        setIsPreparing(false);
+      }
+      return;
+    }
+
+    if (view === "reset") {
+      try {
+        await updatePassword(password);
+        await signOut();
+        window.location.assign("/login?password=updated");
+        return;
+      } catch {
+        setResetState("expired");
+      } finally {
+        setIsPreparing(false);
+      }
+      return;
+    }
+
+    setIsPreparing(false);
   }
+
+  const resetExpired = view === "reset" && resetState === "expired";
 
   return (
     <div className="contour-shell auth-shell">
@@ -132,6 +209,16 @@ export function AuthExperience({ view }: { view: AuthView }) {
             </div>
           ) : null}
 
+          {view === "reset" && resetState === "checking" ? (
+            <p aria-live="polite" className="auth-form__notice" role="status">Checking your password reset link…</p>
+          ) : null}
+
+          {resetExpired ? (
+            <div className="auth-notice auth-notice--error" role="alert">
+              <p>This password reset link is invalid or expired. Request a new link to continue.</p>
+            </div>
+          ) : null}
+
           {view === "denied" ? (
             <div className="auth-notice auth-notice--error" role="alert">
               <p>If you think you should have access, ask your store administrator to check your team permissions.</p>
@@ -139,21 +226,23 @@ export function AuthExperience({ view }: { view: AuthView }) {
           ) : null}
 
           {hasForm ? (
-            <form className="auth-form" onSubmit={handlePreviewSubmit}>
-              <div className="field-group">
-                <label className="field-label" htmlFor="auth-email">Email address</label>
-                <input
-                  autoComplete="email"
-                  className="field-control"
-                  id="auth-email"
-                  name="email"
-                  required
-                  type="email"
-                />
-                {view !== "forgot" ? <FieldHelp>For dashboard users on your store team.</FieldHelp> : null}
-              </div>
+            <form className="auth-form" onSubmit={handleSubmit}>
+              {view !== "reset" ? (
+                <div className="field-group">
+                  <label className="field-label" htmlFor="auth-email">Email address</label>
+                  <input
+                    autoComplete="email"
+                    className="field-control"
+                    id="auth-email"
+                    name="email"
+                    required
+                    type="email"
+                  />
+                  {view !== "forgot" ? <FieldHelp>For dashboard users on your store team.</FieldHelp> : null}
+                </div>
+              ) : null}
 
-              {view === "login" || view === "register" ? (
+              {view === "login" || view === "register" || view === "reset" ? (
                 <div className="field-group">
                   <label className="field-label" htmlFor="auth-password">Password</label>
                   <input
@@ -165,7 +254,7 @@ export function AuthExperience({ view }: { view: AuthView }) {
                     required
                     type="password"
                   />
-                  {view === "register" ? <FieldHelp>Use at least 8 characters.</FieldHelp> : null}
+                  {view === "register" || view === "reset" ? <FieldHelp>Use at least 8 characters.</FieldHelp> : null}
                 </div>
               ) : null}
 
@@ -180,7 +269,7 @@ export function AuthExperience({ view }: { view: AuthView }) {
               ) : null}
 
               <button aria-busy={isPreparing} className="primary-button auth-submit" disabled={isPreparing} type="submit">
-                <span>{isPreparing ? view === "register" ? "Creating account…" : "Preparing preview…" : view === "login" ? "Log in" : view === "register" ? "Create account" : "Send reset link"}</span>
+                <span>{isPreparing ? view === "register" ? "Creating account…" : view === "login" ? "Signing in…" : view === "reset" ? "Updating password…" : "Sending…" : view === "login" ? "Log in" : view === "register" ? "Create account" : view === "reset" ? "Update password" : "Send reset link"}</span>
                 {!isPreparing && view === "login" ? <ArrowIcon /> : null}
               </button>
             </form>
@@ -194,12 +283,13 @@ export function AuthExperience({ view }: { view: AuthView }) {
               </>
             ) : view === "register" ? (
               <p>Already have an account? <Link className="text-link" href="/login">Log in</Link></p>
-            ) : view === "forgot" || view === "expired" ? (
+            ) : view === "forgot" || view === "expired" || view === "reset" ? (
               <Link className="auth-back-link" href="/login">Back to Log in</Link>
             ) : (
               <Link className="auth-back-link" href="/login">Return to Log in</Link>
             )}
             {view === "expired" ? <Link className="primary-button auth-secondary-action" href="/forgot-password">Request a new link</Link> : null}
+            {resetExpired ? <Link className="primary-button auth-secondary-action" href="/forgot-password">Request a new link</Link> : null}
           </nav>
         </section>
         <p className="auth-audience">AI Commerce Copilot accounts are for store teams. Shopify shoppers use the storefront chat without logging in.</p>
